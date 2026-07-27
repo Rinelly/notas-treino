@@ -1,0 +1,93 @@
+.card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.titulo {
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: capitalize;
+}
+
+.nav {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+
+  &:hover {
+    color: var(--text);
+    background: var(--bg-elevated-2);
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.diaSemana {
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-subtle);
+  padding-bottom: 2px;
+}
+
+.celulaVazia {
+  height: 28px;
+}
+
+.dia {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-radius: 50%;
+}
+
+.treinado {
+  background: var(--accent-bg);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.marca {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 8px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--bg-elevated);
+}
+
+.hoje {
+  box-shadow: 0 0 0 1.5px var(--accent-strong);
+  color: var(--text);
+}

@@ -1,0 +1,232 @@
+.page {
+  padding: 20px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+}
+
+.topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.voltar {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.editarBtn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 6px 12px;
+
+  &:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+}
+
+.progresso {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: -8px;
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.categoria {
+  color: var(--text-subtle);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 10px;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.concluido {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+
+  .nome {
+    text-decoration: line-through;
+    color: var(--text-muted);
+  }
+}
+
+.check {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  background: none;
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.concluido .check {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.nome {
+  font-weight: 600;
+}
+
+.meta {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.marcas {
+  flex-shrink: 0;
+  display: flex;
+  gap: 6px;
+}
+
+.repsInput,
+.cargaInput {
+  width: 56px;
+  padding: 8px 6px;
+  text-align: center;
+}
+
+// Modo de edição
+
+.editRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+}
+
+.editFields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editNome {
+  font-weight: 600;
+}
+
+.editLinha {
+  display: flex;
+  gap: 6px;
+
+  input {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+  }
+}
+
+.remover {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 13px;
+
+  &:hover {
+    background: var(--danger-bg);
+    border-color: var(--danger);
+  }
+}
+
+.addForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-elevated);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.addLinha {
+  display: flex;
+  gap: 8px;
+}
+
+.addCategoria {
+  flex-shrink: 0;
+  width: 110px;
+}
+
+.addNome,
+.addSeries {
+  flex: 1;
+  min-width: 0;
+}
+
+.addBtn {
+  flex-shrink: 0;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.finalizarBtn {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: var(--radius);
+  padding: 14px;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.finalizado {
+  background: var(--bg-elevated-2);
+  color: var(--accent-strong);
+  border: 1px solid var(--accent);
+}
