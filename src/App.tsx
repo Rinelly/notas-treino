@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
+import { configOk } from './lib/supabase'
+import SemConfig from './pages/SemConfig'
 import Nav from './components/Nav'
 import Boot from './pages/Boot'
 import Login from './pages/Login'
@@ -31,6 +33,9 @@ function Conteudo() {
 }
 
 function App() {
+  // sem chaves não dá nem pra montar o AuthProvider: ele fala com o Supabase na hora
+  if (!configOk) return <SemConfig />
+
   return (
     <AuthProvider>
       <Conteudo />
