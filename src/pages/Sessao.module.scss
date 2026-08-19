@@ -233,3 +233,19 @@
   color: var(--accent-strong);
   border: 1px solid var(--accent);
 }
+
+/* aviso quando a gravação no banco falha — antes o erro sumia calado */
+.erroGravacao {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  word-break: break-word;
+
+  b {
+    color: var(--danger);
+  }
+}

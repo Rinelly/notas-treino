@@ -34,6 +34,7 @@ export default function Sessao() {
   const [execucoes, setExecucoes] = useState<Map<string, Execucao>>(new Map())
   const [ultimasMarcas, setUltimasMarcas] = useState<Map<string, UltimaMarca>>(new Map())
   const [editando, setEditando] = useState(false)
+  const [erroGravacao, setErroGravacao] = useState<string | null>(null)
 
   const [novoNome, setNovoNome] = useState('')
   const [novoSeriesAlvo, setNovoSeriesAlvo] = useState('')
@@ -66,11 +67,21 @@ export default function Sessao() {
     setUltimasMarcas(marcas)
   }
 
+  function avisarErro(e: unknown) {
+    setErroGravacao(e instanceof Error ? e.message : String(e))
+  }
+
+  /**
+   * Marca primeiro na tela e grava depois. Se a gravação falhar,
+   * desfaz e mostra o motivo — antes o erro sumia em silêncio e a
+   * marcação simplesmente não acontecia.
+   */
   async function toggleConcluido(exercicioId: string) {
     if (!sessao) return
     const atual = execucoes.get(exercicioId)
     const concluido = !atual?.concluido
-    await upsertExecucao(sessao.id!, exercicioId, { concluido })
+
+    setErroGravacao(null)
     setExecucoes((prev) =>
       new Map(prev).set(exercicioId, {
         ...atual,
@@ -79,6 +90,18 @@ export default function Sessao() {
         concluido,
       }),
     )
+
+    try {
+      await upsertExecucao(sessao.id!, exercicioId, { concluido })
+    } catch (e) {
+      avisarErro(e)
+      setExecucoes((prev) => {
+        const m = new Map(prev)
+        if (atual) m.set(exercicioId, atual)
+        else m.delete(exercicioId)
+        return m
+      })
+    }
   }
 
   async function definirCampoExecucao(
@@ -86,7 +109,13 @@ export default function Sessao() {
     dados: Partial<Pick<Execucao, 'carga' | 'repsFeitas'>>,
   ) {
     if (!sessao) return
-    await upsertExecucao(sessao.id!, exercicioId, dados)
+    setErroGravacao(null)
+    try {
+      await upsertExecucao(sessao.id!, exercicioId, dados)
+    } catch (e) {
+      avisarErro(e)
+      return
+    }
     setExecucoes((prev) => {
       const atual = prev.get(exercicioId)
       return new Map(prev).set(exercicioId, {
@@ -128,7 +157,13 @@ export default function Sessao() {
   async function toggleFinalizar() {
     if (!sessao?.id) return
     const finalizada = !sessao.finalizada
-    await finalizarSessao(sessao.id, finalizada)
+    setErroGravacao(null)
+    try {
+      await finalizarSessao(sessao.id, finalizada)
+    } catch (e) {
+      avisarErro(e)
+      return
+    }
     setSessao((prev) => (prev ? { ...prev, finalizada } : prev))
   }
 
@@ -165,6 +200,12 @@ export default function Sessao() {
       <div className={styles.progresso}>
         {feitos}/{total} concluídos
       </div>
+
+      {erroGravacao && (
+        <div className={styles.erroGravacao}>
+          <b>Não consegui salvar.</b> {erroGravacao}
+        </div>
+      )}
 
       <ul className={styles.lista}>
         {rotina.exercicios.map((ex, idx) => {

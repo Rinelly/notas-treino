@@ -156,6 +156,17 @@ export async function execucoesDaSessao(sessaoId: number): Promise<Execucao[]> {
   return (rows ?? []).map(paraExecucao)
 }
 
+/**
+ * Grava só os campos informados de uma execução.
+ *
+ * Aqui NÃO dá pra usar upsert. O upsert do PostgREST monta a linha
+ * inteira: as colunas que você não manda voltam pro padrão. Então
+ * marcar "concluído" apagaria a carga, e digitar a carga desmarcaria
+ * o "concluído".
+ *
+ * O caminho certo é tentar o UPDATE primeiro e só inserir se não
+ * existir linha ainda.
+ */
 export async function upsertExecucao(
   sessaoId: number,
   exercicioId: string,
@@ -165,19 +176,46 @@ export async function upsertExecucao(
   if (dados.concluido !== undefined) patch.concluido = dados.concluido
   if (dados.carga !== undefined) patch.carga = dados.carga ?? null
   if (dados.repsFeitas !== undefined) patch.reps_feitas = dados.repsFeitas ?? null
+  if (Object.keys(patch).length === 0) return
 
-  checar(
-    await supabase.from('execucoes').upsert(
-      {
-        user_id: await uid(),
-        sessao_id: sessaoId,
-        exercicio_id: exercicioId,
-        concluido: false,
-        ...patch,
-      },
-      { onConflict: 'sessao_id,exercicio_id' },
-    ),
-  )
+  // 1) já existe? então só altera o que mudou
+  const alteradas = checar(
+    await supabase
+      .from('execucoes')
+      .update(patch)
+      .eq('sessao_id', sessaoId)
+      .eq('exercicio_id', exercicioId)
+      .select('id'),
+  ) as { id: number }[] | null
+
+  if (alteradas && alteradas.length > 0) return
+
+  // 2) primeira vez nesse exercício: cria a linha
+  const res = await supabase.from('execucoes').insert({
+    user_id: await uid(),
+    sessao_id: sessaoId,
+    exercicio_id: exercicioId,
+    concluido: false,
+    carga: null,
+    reps_feitas: null,
+    ...patch,
+  })
+
+  // corrida: dois cliques quase juntos podem inserir ao mesmo tempo.
+  // se o outro ganhou, o UPDATE resolve.
+  if (res.error) {
+    if (res.error.code === '23505') {
+      checar(
+        await supabase
+          .from('execucoes')
+          .update(patch)
+          .eq('sessao_id', sessaoId)
+          .eq('exercicio_id', exercicioId),
+      )
+      return
+    }
+    throw new Error(res.error.message)
+  }
 }
 
 /**
