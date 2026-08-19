@@ -196,6 +196,7 @@ export default function Sessao() {
           {editando ? 'Concluir edição' : 'Editar'}
         </button>
       </div>
+      {rotina.letra && <div className={styles.letraTreino}>Treino {rotina.letra}</div>}
       <h1>{rotina.nome}</h1>
       <div className={styles.progresso}>
         {feitos}/{total} concluídos

@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getOrCriarSessaoHoje, getRotinas, hoje, ultimaSessaoComProgresso } from '../db/queries'
+import {
+  getOrCriarSessaoHoje,
+  getRotinas,
+  hoje,
+  proximoTreino,
+  ultimaSessaoComProgresso,
+} from '../db/queries'
 import type { Rotina, Sessao } from '../types'
 import FrequencyCalendar from '../components/FrequencyCalendar'
 import styles from './Home.module.scss'
-
-const ordemDias = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
-const diasPorIndiceJs = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
-
-function diaDeHoje() {
-  return diasPorIndiceJs[new Date().getDay()]
-}
 
 function dataAmigavel(data: string) {
   if (data === hoje()) return 'Hoje'
@@ -33,13 +32,13 @@ interface UltimoTreino {
 export default function Home() {
   const navigate = useNavigate()
   const [rotinas, setRotinas] = useState<Rotina[]>([])
+  const [proximaId, setProximaId] = useState<number | null>(null)
   const [ultimoTreino, setUltimoTreino] = useState<UltimoTreino | null>(null)
 
   useEffect(() => {
-    getRotinas().then((rs) => {
-      rs.sort((a, b) => ordemDias.indexOf(a.diaSemana) - ordemDias.indexOf(b.diaSemana))
-      setRotinas(rs)
-    })
+    // getRotinas já vem na ordem do rodízio, com a letra
+    getRotinas().then(setRotinas)
+    proximoTreino().then((p) => setProximaId(p.rotina?.id ?? null))
     ultimaSessaoComProgresso().then(setUltimoTreino)
   }, [])
 
@@ -47,8 +46,6 @@ export default function Home() {
     const sessao = await getOrCriarSessaoHoje(rotinaId)
     navigate(`/sessao/${sessao.id}`)
   }
-
-  const hojeSemana = diaDeHoje()
 
   return (
     <div className={styles.page}>
@@ -76,11 +73,12 @@ export default function Home() {
             <button
               type="button"
               onClick={() => abrirRotina(rotina.id!)}
-              className={
-                rotina.diaSemana === hojeSemana ? `${styles.item} ${styles.hoje}` : styles.item
-              }
+              className={rotina.id === proximaId ? `${styles.item} ${styles.hoje}` : styles.item}
             >
-              <div className={styles.itemDia}>{rotina.diaSemana}</div>
+              <div className={styles.itemDia}>
+                Treino {rotina.letra}
+                {rotina.id === proximaId && <span className={styles.selo}>próximo</span>}
+              </div>
               <div className={styles.itemNome}>{rotina.nome}</div>
             </button>
           </li>

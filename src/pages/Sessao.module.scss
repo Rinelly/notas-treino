@@ -249,3 +249,13 @@
     color: var(--danger);
   }
 }
+
+/* "Treino A" acima do nome da rotina */
+.letraTreino {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 2px;
+}

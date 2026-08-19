@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getOrCriarSessaoHoje, resumoTreinoHoje, type ResumoTreinoHoje } from '../db/queries'
+import { getOrCriarSessaoHoje, proximoTreino, type ProximoTreino } from '../db/queries'
 import { getConfig, getDia, getTarefasDeHoje } from '../foco/queries'
 import { CONFIG_PADRAO, diaVazio, type Config, type Dia, type Tarefa } from '../foco/tipos'
 import { dataLonga, fmtHM, hojeChave } from '../lib/datas'
@@ -27,7 +27,7 @@ export default function Hoje() {
   const [config, setConfig] = useState<Config>(CONFIG_PADRAO)
   const [dia, setDia] = useState<Dia>(() => diaVazio(hojeChave()))
   const [tarefas, setTarefas] = useState<Tarefa[]>([])
-  const [treino, setTreino] = useState<ResumoTreinoHoje | null>(null)
+  const [treino, setTreino] = useState<ProximoTreino | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -39,7 +39,7 @@ export default function Hoje() {
           getConfig(),
           getDia(hojeChave()),
           getTarefasDeHoje(),
-          resumoTreinoHoje(),
+          proximoTreino(),
         ])
         if (!vivo) return
         setConfig(c)
@@ -81,8 +81,6 @@ export default function Hoje() {
   const pendentes = tarefas.filter((t) => !t.feita)
   const feitasHoje = tarefas.filter((t) => t.feita).length
 
-  const treinouAlgo = (treino?.feitos ?? 0) > 0
-
   return (
     <div className={s.page}>
       <header className={s.cabecalho}>
@@ -117,12 +115,13 @@ export default function Hoje() {
 
         {/* ---------- treino ---------- */}
         <button type="button" className={s.card} onClick={() => void abrirTreino()}>
-          <div className={s.rotulo}>Treino de hoje</div>
+          <div className={s.rotulo}>Próximo treino</div>
           {treino?.rotina ? (
             <>
               <div className={s.destaque} style={{ fontSize: 17, lineHeight: 1.3 }}>
-                {treino.rotina.nome}
+                Treino {treino.rotina.letra}
               </div>
+              <div className={s.detalhe}>{treino.rotina.nome}</div>
               <div className={s.barra}>
                 <div
                   className={`${s.fatia} ${s.feito}`}
@@ -133,15 +132,15 @@ export default function Hoje() {
                 {treino.feitos}/{treino.total} exercícios
               </div>
               <span className={`${s.selo} ${treino.finalizada ? s.ok : s.pendente}`}>
-                {treino.finalizada ? '✓ concluído' : treinouAlgo ? 'em andamento' : 'não começou'}
+                {treino.finalizada ? '✓ concluído' : treino.emAndamento ? 'em andamento' : 'não começou'}
               </span>
             </>
           ) : (
             <>
               <div className={s.destaque} style={{ fontSize: 17 }}>
-                Dia de descanso
+                Sem treinos
               </div>
-              <div className={s.vazio}>Não há rotina cadastrada para hoje.</div>
+              <div className={s.vazio}>Nenhuma rotina cadastrada ainda.</div>
             </>
           )}
         </button>

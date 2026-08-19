@@ -76,22 +76,27 @@ function checar<T>(res: { data: T; error: { message: string } | null }): T {
 /* ----------------------------------------------------------
    Rotinas
    ---------------------------------------------------------- */
+/** A, B, C... a partir da posição no rodízio */
+export function letraDoTreino(indice: number) {
+  return String.fromCharCode(65 + (indice % 26))
+}
+
+/** as rotinas na ordem do rodízio, já com a letra */
 export async function getRotinas(): Promise<Rotina[]> {
   const rows = checar(
     await supabase.from('rotinas').select('id, dia_semana, nome, exercicios').order('id'),
   ) as RotinaRow[] | null
-  return (rows ?? []).map(paraRotina)
+  return (rows ?? []).map((r, i) => ({ ...paraRotina(r), letra: letraDoTreino(i) }))
 }
 
+/**
+ * Busca pela lista inteira em vez de uma linha só, porque a letra
+ * do treino vem da posição no rodízio — sozinha, a linha não sabe
+ * se é o A ou o D. São 5 rotinas: o custo é irrelevante.
+ */
 export async function getRotina(id: number): Promise<Rotina | null> {
-  const row = checar(
-    await supabase
-      .from('rotinas')
-      .select('id, dia_semana, nome, exercicios')
-      .eq('id', id)
-      .maybeSingle(),
-  ) as RotinaRow | null
-  return row ? paraRotina(row) : null
+  const rotinas = await getRotinas()
+  return rotinas.find((r) => r.id === id) ?? null
 }
 
 /* ----------------------------------------------------------
@@ -369,49 +374,102 @@ export async function removerExercicio(rotinaId: number, exercicioId: string) {
 }
 
 /* ----------------------------------------------------------
-   Resumo pro painel "Hoje"
-   ---------------------------------------------------------- */
-const DIAS_JS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+   Qual é o próximo treino do rodízio
 
-export interface ResumoTreinoHoje {
+   A regra, em ordem:
+   1. nunca treinou       -> o primeiro (Treino A)
+   2. a última sessão com progresso é de HOJE e não foi finalizada
+                          -> continua nela
+   3. caso contrário      -> o seguinte na sequência, voltando pro A
+                             depois do último
+
+   O item 2 evita trocar de treino no meio do exercício. E aceitar
+   "de um dia anterior" como encerrado evita ficar travada pra sempre
+   num treino que você começou e largou sem finalizar.
+   ---------------------------------------------------------- */
+
+export interface ProximoTreino {
   rotina: Rotina | null
   sessaoId: number | null
   feitos: number
   total: number
   finalizada: boolean
+  /** já começou hoje: o card mostra "em andamento" em vez de "não começou" */
+  emAndamento: boolean
 }
 
-/** o treino previsto pra hoje e o quanto dele já foi feito */
-export async function resumoTreinoHoje(): Promise<ResumoTreinoHoje> {
+export async function proximoTreino(): Promise<ProximoTreino> {
+  const vazio: ProximoTreino = {
+    rotina: null, sessaoId: null, feitos: 0, total: 0, finalizada: false, emAndamento: false,
+  }
+
   const rotinas = await getRotinas()
-  const nomeDia = DIAS_JS[new Date().getDay()]
-  const rotina = rotinas.find((r) => r.diaSemana === nomeDia) ?? null
+  if (rotinas.length === 0) return vazio
 
-  const vazio: ResumoTreinoHoje = { rotina, sessaoId: null, feitos: 0, total: 0, finalizada: false }
-  if (!rotina?.id) return vazio
-
-  vazio.total = rotina.exercicios.length
-
-  // só lê: não cria sessão à toa só por abrir o painel
-  const sessao = checar(
+  // sessões recentes, da mais nova pra mais antiga
+  const sessoes = (checar(
     await supabase
       .from('sessoes')
       .select('id, rotina_id, data, finalizada')
-      .eq('rotina_id', rotina.id)
+      .order('data', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(40),
+  ) as SessaoRow[] | null) ?? []
+
+  let comProgresso = new Set<number>()
+  if (sessoes.length) {
+    const execs = (checar(
+      await supabase
+        .from('execucoes')
+        .select('sessao_id')
+        .in('sessao_id', sessoes.map((s) => s.id))
+        .eq('concluido', true),
+    ) as { sessao_id: number }[] | null) ?? []
+    comProgresso = new Set(execs.map((e) => e.sessao_id))
+  }
+
+  const ultima = sessoes.find((s) => s.finalizada || comProgresso.has(s.id)) ?? null
+
+  let alvo = rotinas[0]
+  if (ultima) {
+    const i = rotinas.findIndex((r) => r.id === ultima.rotina_id)
+    if (i >= 0) {
+      const continuaNela = ultima.data === hoje() && !ultima.finalizada
+      alvo = continuaNela ? rotinas[i] : rotinas[(i + 1) % rotinas.length]
+    }
+  }
+
+  const resultado: ProximoTreino = {
+    rotina: alvo,
+    sessaoId: null,
+    feitos: 0,
+    total: alvo.exercicios.length,
+    finalizada: false,
+    emAndamento: false,
+  }
+
+  // só lê: não cria sessão à toa só por abrir o painel
+  const sessaoHoje = checar(
+    await supabase
+      .from('sessoes')
+      .select('id, rotina_id, data, finalizada')
+      .eq('rotina_id', alvo.id!)
       .eq('data', hoje())
       .maybeSingle(),
   ) as SessaoRow | null
-  if (!sessao) return vazio
+  if (!sessaoHoje) return resultado
 
   const execs = (checar(
-    await supabase.from('execucoes').select('id').eq('sessao_id', sessao.id).eq('concluido', true),
+    await supabase
+      .from('execucoes')
+      .select('id')
+      .eq('sessao_id', sessaoHoje.id)
+      .eq('concluido', true),
   ) as { id: number }[] | null) ?? []
 
-  return {
-    rotina,
-    sessaoId: sessao.id,
-    feitos: execs.length,
-    total: rotina.exercicios.length,
-    finalizada: sessao.finalizada,
-  }
+  resultado.sessaoId = sessaoHoje.id
+  resultado.feitos = execs.length
+  resultado.finalizada = sessaoHoje.finalizada
+  resultado.emAndamento = execs.length > 0 && !sessaoHoje.finalizada
+  return resultado
 }
