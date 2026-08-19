@@ -1,11 +1,12 @@
 import { Fragment, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { db } from '../db/db'
 import {
   adicionarExercicio,
   atualizarExercicio,
   execucoesDaSessao,
   finalizarSessao,
+  getRotina,
+  getSessao,
   removerExercicio,
   ultimaExecucao,
   upsertExecucao,
@@ -43,11 +44,11 @@ export default function Sessao() {
   }, [id])
 
   async function carregar() {
-    const s = await db.sessoes.get(id)
+    const s = await getSessao(id)
     if (!s) return
     setSessao(s)
 
-    const r = await db.rotinas.get(s.rotinaId)
+    const r = await getRotina(s.rotinaId)
     if (!r) return
     setRotina(r)
 

@@ -10,11 +10,12 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Notas de Treino',
-        short_name: 'Treino',
-        description: 'Registro pessoal de treinos de musculação',
-        theme_color: '#0f0f0f',
-        background_color: '#0f0f0f',
+        name: 'Foco & Treino',
+        lang: 'pt-BR',
+        short_name: 'Foco',
+        description: 'Horas de foco e registro de treinos, num lugar só',
+        theme_color: '#0a0a0b',
+        background_color: '#0a0a0b',
         display: 'standalone',
         start_url: '/',
         icons: [

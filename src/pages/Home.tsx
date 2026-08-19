@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { db } from '../db/db'
-import { seedRotinas } from '../db/seed'
-import { getOrCriarSessaoHoje, hoje, ultimaSessaoComProgresso } from '../db/queries'
+import { getOrCriarSessaoHoje, getRotinas, hoje, ultimaSessaoComProgresso } from '../db/queries'
 import type { Rotina, Sessao } from '../types'
 import FrequencyCalendar from '../components/FrequencyCalendar'
 import styles from './Home.module.scss'
@@ -38,13 +36,11 @@ export default function Home() {
   const [ultimoTreino, setUltimoTreino] = useState<UltimoTreino | null>(null)
 
   useEffect(() => {
-    seedRotinas().then(() => {
-      db.rotinas.toArray().then((rs) => {
-        rs.sort((a, b) => ordemDias.indexOf(a.diaSemana) - ordemDias.indexOf(b.diaSemana))
-        setRotinas(rs)
-      })
-      ultimaSessaoComProgresso().then(setUltimoTreino)
+    getRotinas().then((rs) => {
+      rs.sort((a, b) => ordemDias.indexOf(a.diaSemana) - ordemDias.indexOf(b.diaSemana))
+      setRotinas(rs)
     })
+    ultimaSessaoComProgresso().then(setUltimoTreino)
   }, [])
 
   async function abrirRotina(rotinaId: number) {

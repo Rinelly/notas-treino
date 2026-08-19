@@ -1,4 +1,4 @@
-import { db } from './db'
+import { supabase, uid } from '../lib/supabase'
 import type { CategoriaExercicio, ExercicioRotina, Rotina } from '../types'
 
 function ex(
@@ -80,10 +80,29 @@ const rotinas: Omit<Rotina, 'id'>[] = [
   },
 ]
 
+/** as rotinas padrão, expostas pra quem precisar (migração, testes) */
+export { rotinas as rotinasPadrao }
+
+/**
+ * Cria as rotinas padrão só se a conta ainda não tiver nenhuma.
+ * Roda uma vez, no primeiro login. Se você já migrou seus dados
+ * do navegador, isto não faz nada.
+ */
 export async function seedRotinas() {
-  await db.transaction('rw', db.rotinas, async () => {
-    const count = await db.rotinas.count()
-    if (count > 0) return
-    await db.rotinas.bulkAdd(rotinas)
-  })
+  const { count, error } = await supabase
+    .from('rotinas')
+    .select('id', { count: 'exact', head: true })
+  if (error) throw new Error(error.message)
+  if ((count ?? 0) > 0) return
+
+  const userId = await uid()
+  const { error: erroInsert } = await supabase.from('rotinas').insert(
+    rotinas.map((r) => ({
+      user_id: userId,
+      dia_semana: r.diaSemana,
+      nome: r.nome,
+      exercicios: r.exercicios,
+    })),
+  )
+  if (erroInsert) throw new Error(erroInsert.message)
 }

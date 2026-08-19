@@ -16,6 +16,10 @@
   --danger: #d97066;
   --danger-bg: rgba(217, 112, 102, 0.12);
 
+  /* tipos de tarefa do Foco */
+  --cor-trabalho: #e0a458;
+  --cor-estudo: #6ba8dd;
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --radius: 14px;
   --radius-sm: 10px;
@@ -46,9 +50,11 @@ body {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  max-width: 480px;
-  margin: 0 auto;
 }
+
+/* O limite de largura saiu daqui e foi pra cada página:
+   as telas de treino seguem com cara de celular (480px),
+   as de foco e do painel usam a largura de computador. */
 
 h1,
 h2,
