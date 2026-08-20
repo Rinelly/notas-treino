@@ -77,7 +77,7 @@ export default function Home() {
             >
               <div className={styles.itemDia}>
                 Treino {rotina.letra}
-                {rotina.id === proximaId && <span className={styles.selo}>próximo</span>}
+                {rotina.id === proximaId && <span className={styles.selo}>atual</span>}
               </div>
               <div className={styles.itemNome}>{rotina.nome}</div>
             </button>

@@ -374,18 +374,20 @@ export async function removerExercicio(rotinaId: number, exercicioId: string) {
 }
 
 /* ----------------------------------------------------------
-   Qual é o próximo treino do rodízio
+   Qual treino mostrar no painel
 
    A regra, em ordem:
-   1. nunca treinou       -> o primeiro (Treino A)
-   2. a última sessão com progresso é de HOJE e não foi finalizada
-                          -> continua nela
-   3. caso contrário      -> o seguinte na sequência, voltando pro A
-                             depois do último
+   1. já tem sessão de HOJE com alguma coisa feita (ou finalizada)
+      -> mostra ELA, com o estado real. O treino de hoje continua
+         sendo o de hoje mesmo depois de concluído; só vira o
+         próximo amanhã.
+   2. senão, olha a última sessão com progresso de dias anteriores
+      e mostra o SEGUINTE na sequência, voltando pro A no fim
+   3. nunca treinou -> Treino A
 
-   O item 2 evita trocar de treino no meio do exercício. E aceitar
-   "de um dia anterior" como encerrado evita ficar travada pra sempre
-   num treino que você começou e largou sem finalizar.
+   O item 2 trata uma sessão de dia anterior como encerrada mesmo
+   sem "Finalizar treino", pra não ficar travada num treino que
+   você começou e largou.
    ---------------------------------------------------------- */
 
 export interface ProximoTreino {
@@ -394,7 +396,7 @@ export interface ProximoTreino {
   feitos: number
   total: number
   finalizada: boolean
-  /** já começou hoje: o card mostra "em andamento" em vez de "não começou" */
+  /** começou hoje mas ainda não finalizou */
   emAndamento: boolean
 }
 
@@ -416,7 +418,8 @@ export async function proximoTreino(): Promise<ProximoTreino> {
       .limit(40),
   ) as SessaoRow[] | null) ?? []
 
-  let comProgresso = new Set<number>()
+  // quantos exercícios concluídos por sessão
+  const feitosPorSessao = new Map<number, number>()
   if (sessoes.length) {
     const execs = (checar(
       await supabase
@@ -425,51 +428,49 @@ export async function proximoTreino(): Promise<ProximoTreino> {
         .in('sessao_id', sessoes.map((s) => s.id))
         .eq('concluido', true),
     ) as { sessao_id: number }[] | null) ?? []
-    comProgresso = new Set(execs.map((e) => e.sessao_id))
-  }
-
-  const ultima = sessoes.find((s) => s.finalizada || comProgresso.has(s.id)) ?? null
-
-  let alvo = rotinas[0]
-  if (ultima) {
-    const i = rotinas.findIndex((r) => r.id === ultima.rotina_id)
-    if (i >= 0) {
-      const continuaNela = ultima.data === hoje() && !ultima.finalizada
-      alvo = continuaNela ? rotinas[i] : rotinas[(i + 1) % rotinas.length]
+    for (const e of execs) {
+      feitosPorSessao.set(e.sessao_id, (feitosPorSessao.get(e.sessao_id) ?? 0) + 1)
     }
   }
 
-  const resultado: ProximoTreino = {
+  const temAlgo = (s: SessaoRow) => s.finalizada || (feitosPorSessao.get(s.id) ?? 0) > 0
+
+  /* 1. o treino de hoje, se já houve algum movimento nele */
+  const hojeStr = hoje()
+  const deHoje = sessoes.find((s) => s.data === hojeStr && temAlgo(s))
+  if (deHoje) {
+    const rotina = rotinas.find((r) => r.id === deHoje.rotina_id)
+    if (rotina) {
+      const feitos = feitosPorSessao.get(deHoje.id) ?? 0
+      return {
+        rotina,
+        sessaoId: deHoje.id,
+        feitos,
+        total: rotina.exercicios.length,
+        finalizada: deHoje.finalizada,
+        emAndamento: !deHoje.finalizada && feitos > 0,
+      }
+    }
+  }
+
+  /* 2. senão, o seguinte ao último treino de dias anteriores */
+  const anterior = sessoes.find((s) => s.data < hojeStr && temAlgo(s)) ?? null
+
+  let alvo = rotinas[0]
+  if (anterior) {
+    const i = rotinas.findIndex((r) => r.id === anterior.rotina_id)
+    if (i >= 0) alvo = rotinas[(i + 1) % rotinas.length]
+  }
+
+  // pode existir sessão de hoje ainda sem nada marcado
+  const sessaoVaziaHoje = sessoes.find((s) => s.data === hojeStr && s.rotina_id === alvo.id)
+
+  return {
     rotina: alvo,
-    sessaoId: null,
+    sessaoId: sessaoVaziaHoje?.id ?? null,
     feitos: 0,
     total: alvo.exercicios.length,
     finalizada: false,
     emAndamento: false,
   }
-
-  // só lê: não cria sessão à toa só por abrir o painel
-  const sessaoHoje = checar(
-    await supabase
-      .from('sessoes')
-      .select('id, rotina_id, data, finalizada')
-      .eq('rotina_id', alvo.id!)
-      .eq('data', hoje())
-      .maybeSingle(),
-  ) as SessaoRow | null
-  if (!sessaoHoje) return resultado
-
-  const execs = (checar(
-    await supabase
-      .from('execucoes')
-      .select('id')
-      .eq('sessao_id', sessaoHoje.id)
-      .eq('concluido', true),
-  ) as { id: number }[] | null) ?? []
-
-  resultado.sessaoId = sessaoHoje.id
-  resultado.feitos = execs.length
-  resultado.finalizada = sessaoHoje.finalizada
-  resultado.emAndamento = execs.length > 0 && !sessaoHoje.finalizada
-  return resultado
 }
