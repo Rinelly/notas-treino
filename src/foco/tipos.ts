@@ -8,6 +8,8 @@ export interface Config {
   longaCada: number
   som: boolean
   ultimoTipo: TipoTarefa
+  /** dia do mês em que a mensalidade da academia vence (1-31), ou null */
+  academiaDia: number | null
 }
 
 export interface Dia {
@@ -38,6 +40,7 @@ export const CONFIG_PADRAO: Config = {
   longaCada: 4,
   som: true,
   ultimoTipo: 'estudo',
+  academiaDia: null,
 }
 
 export function diaVazio(chave: string): Dia {

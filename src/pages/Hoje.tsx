@@ -9,7 +9,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getOrCriarSessaoHoje, proximoTreino, type ProximoTreino } from '../db/queries'
-import { getConfig, getDia, getTarefasDeHoje } from '../foco/queries'
+import { getConfig, getDia, getTarefasDeHoje, salvarConfig } from '../foco/queries'
+import { calcularVencimento, formatarDia } from '../lib/academia'
 import { CONFIG_PADRAO, diaVazio, type Config, type Dia, type Tarefa } from '../foco/tipos'
 import { dataLonga, fmtHM, hojeChave } from '../lib/datas'
 import s from './Hoje.module.scss'
@@ -30,6 +31,9 @@ export default function Hoje() {
   const [treino, setTreino] = useState<ProximoTreino | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  const [editandoAcademia, setEditandoAcademia] = useState(false)
+  const [diaDigitado, setDiaDigitado] = useState('')
+  const [erroAcademia, setErroAcademia] = useState<string | null>(null)
 
   useEffect(() => {
     let vivo = true
@@ -56,6 +60,29 @@ export default function Hoje() {
       vivo = false
     }
   }, [])
+
+  async function salvarAcademia(e: React.FormEvent) {
+    e.preventDefault()
+    const n = Number(diaDigitado)
+    if (!Number.isInteger(n) || n < 1 || n > 31) {
+      setErroAcademia('Escolha um dia entre 1 e 31.')
+      return
+    }
+    const nova = { ...config, academiaDia: n }
+    setErroAcademia(null)
+    try {
+      await salvarConfig(nova)
+      setConfig(nova)
+      setEditandoAcademia(false)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setErroAcademia(
+        /academia_dia/.test(msg)
+          ? 'Falta rodar a migração no Supabase: alter table settings add column if not exists academia_dia int;'
+          : msg,
+      )
+    }
+  }
 
   async function abrirTreino() {
     if (!treino?.rotina?.id) return
@@ -115,7 +142,7 @@ export default function Hoje() {
 
         {/* ---------- treino ---------- */}
         <button type="button" className={s.card} onClick={() => void abrirTreino()}>
-          <div className={s.rotulo}>Próximo treino</div>
+          <div className={s.rotulo}>Treino atual</div>
           {treino?.rotina ? (
             <>
               <div className={s.destaque} style={{ fontSize: 17, lineHeight: 1.3 }}>
@@ -131,8 +158,17 @@ export default function Hoje() {
               <div className={s.detalhe}>
                 {treino.feitos}/{treino.total} exercícios
               </div>
-              <span className={`${s.selo} ${treino.finalizada ? s.ok : s.pendente}`}>
-                {treino.finalizada ? '✓ concluído' : treino.emAndamento ? 'em andamento' : 'não começou'}
+              <span
+                className={[
+                  s.selo,
+                  treino.finalizada ? s.ok : treino.emAndamento ? s.andamento : s.pendente,
+                ].join(' ')}
+              >
+                {treino.finalizada
+                  ? '✓ concluído'
+                  : treino.emAndamento
+                    ? 'em andamento'
+                    : 'não iniciado'}
               </span>
             </>
           ) : (
@@ -144,6 +180,73 @@ export default function Hoje() {
             </>
           )}
         </button>
+      </div>
+
+      {/* ---------- academia ---------- */}
+      <div className={`${s.card} ${s.largo} ${s.semClique}`}>
+        <div className={s.linhaTopo}>
+          <div className={s.rotulo}>Academia</div>
+          {config.academiaDia != null && !editandoAcademia && (
+            <button
+              type="button"
+              className={s.linkzinho}
+              onClick={() => {
+                setDiaDigitado(String(config.academiaDia))
+                setEditandoAcademia(true)
+              }}
+            >
+              alterar
+            </button>
+          )}
+        </div>
+
+        {editandoAcademia || config.academiaDia == null ? (
+          <form className={s.formAcademia} onSubmit={(e) => void salvarAcademia(e)}>
+            <label>
+              Vence todo dia
+              <input
+                type="number"
+                min={1}
+                max={31}
+                inputMode="numeric"
+                value={diaDigitado}
+                onChange={(e) => setDiaDigitado(e.target.value)}
+                placeholder="10"
+                autoFocus={editandoAcademia}
+              />
+              do mês
+            </label>
+            <button type="submit" className={s.botaoSalvar}>
+              Salvar
+            </button>
+            {config.academiaDia != null && (
+              <button
+                type="button"
+                className={s.linkzinho}
+                onClick={() => {
+                  setEditandoAcademia(false)
+                  setErroAcademia(null)
+                }}
+              >
+                cancelar
+              </button>
+            )}
+          </form>
+        ) : (
+          (() => {
+            const v = calcularVencimento(config.academiaDia)
+            return (
+              <div className={s.linhaAcademia}>
+                <span className={`${s.selo} ${s[v.nivel]}`}>{v.texto}</span>
+                <span className={s.detalhe}>
+                  mensalidade · {formatarDia(v.data)}
+                </span>
+              </div>
+            )
+          })()
+        )}
+
+        {erroAcademia && <div className={s.erroLinha}>{erroAcademia}</div>}
       </div>
 
       {/* ---------- tarefas ---------- */}

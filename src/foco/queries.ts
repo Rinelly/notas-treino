@@ -35,14 +35,17 @@ type ConfigRow = {
   long_every: number
   sound: boolean
   last_type: string | null
+  academia_dia?: number | null
 }
 
+/**
+ * Usa select('*') de propósito. Listando as colunas, uma que ainda
+ * não existe no banco derruba a consulta inteira — e o app não abre.
+ * Assim, quem não rodou a migração da academia só fica sem o campo.
+ */
 export async function getConfig(): Promise<Config> {
   const row = checar(
-    await supabase
-      .from('settings')
-      .select('goal_hours, focus_min, short_min, long_min, long_every, sound, last_type')
-      .maybeSingle(),
+    await supabase.from('settings').select('*').maybeSingle(),
   ) as ConfigRow | null
 
   if (!row) return { ...CONFIG_PADRAO }
@@ -55,6 +58,7 @@ export async function getConfig(): Promise<Config> {
     longaCada: row.long_every ?? CONFIG_PADRAO.longaCada,
     som: row.sound ?? CONFIG_PADRAO.som,
     ultimoTipo: tipoSeguro(row.last_type),
+    academiaDia: row.academia_dia ?? null,
   }
 }
 
@@ -70,6 +74,7 @@ export async function salvarConfig(c: Config) {
         long_every: c.longaCada,
         sound: c.som,
         last_type: c.ultimoTipo,
+        academia_dia: c.academiaDia,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id' },
