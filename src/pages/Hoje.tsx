@@ -295,6 +295,8 @@ export default function Hoje() {
           <div className={s.nota}>{dia.nota}</div>
         </div>
       )}
+
+      <div className={s.versao}>versão {__VERSAO__}</div>
     </div>
   )
 }

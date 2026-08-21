@@ -292,3 +292,13 @@
   white-space: pre-wrap;
   margin-top: 6px;
 }
+
+/* carimbo do build — pra comparar computador e celular */
+.versao {
+  margin-top: 22px;
+  text-align: center;
+  color: var(--text-muted);
+  opacity: 0.55;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
