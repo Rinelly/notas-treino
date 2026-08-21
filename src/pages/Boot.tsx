@@ -2,8 +2,8 @@
    Boot — o que roda entre o login e o app
 
    Duas tarefas:
-   1. se ainda existir histórico no navegador que nunca foi
-      enviado, oferece a migração
+   1. se ainda existir histórico neste navegador que nunca foi
+      pra nuvem, oferece a junção
    2. senão, garante que as rotinas padrão existem
    ========================================================= */
 
@@ -11,18 +11,18 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   jaMigrou,
   lerResumoLocal,
-  marcarComoMigrado,
   migrarParaNuvem,
-  nuvemTemDados,
   type ResultadoMigracao,
   type ResumoLocal,
 } from '../db/migrarLocal'
 import { seedRotinas } from '../db/seed'
 import styles from './Boot.module.scss'
 
+const PULOU = 'treino.migracao.adiada'
+
 type Estado =
   | { fase: 'verificando' }
-  | { fase: 'perguntar'; local: ResumoLocal; nuvemOcupada: boolean }
+  | { fase: 'perguntar'; local: ResumoLocal }
   | { fase: 'enviando' }
   | { fase: 'resultado'; r: ResultadoMigracao }
   | { fase: 'pronto' }
@@ -35,12 +35,17 @@ export default function Boot({ children }: { children: ReactNode }) {
     try {
       setEstado({ fase: 'verificando' })
 
-      if (!jaMigrou()) {
+      let pulouAgora = false
+      try {
+        pulouAgora = sessionStorage.getItem(PULOU) === '1'
+      } catch {
+        /* ignora */
+      }
+
+      if (!jaMigrou() && !pulouAgora) {
         const local = await lerResumoLocal()
         if (local.rotinas > 0 || local.sessoes > 0) {
-          // oferece mesmo que a nuvem já tenha algo: pode ser sobra de
-          // uma tentativa que falhou no meio, e aí ficar preso é pior
-          setEstado({ fase: 'perguntar', local, nuvemOcupada: await nuvemTemDados() })
+          setEstado({ fase: 'perguntar', local })
           return
         }
       }
@@ -66,8 +71,17 @@ export default function Boot({ children }: { children: ReactNode }) {
     }
   }
 
+  /**
+   * "Agora não" só vale pra esta aba. De propósito: isso virou uma
+   * ferramenta de recuperação, e esconder pra sempre um histórico
+   * que ainda não subiu é justamente como se perde treino.
+   */
   async function pular() {
-    marcarComoMigrado()
+    try {
+      sessionStorage.setItem(PULOU, '1')
+    } catch {
+      /* modo privado: só vai perguntar de novo */
+    }
     try {
       await seedRotinas()
       setEstado({ fase: 'pronto' })
@@ -83,7 +97,7 @@ export default function Boot({ children }: { children: ReactNode }) {
   }
 
   if (estado.fase === 'enviando') {
-    return <div className={styles.centro}>Enviando seu histórico pra nuvem...</div>
+    return <div className={styles.centro}>Juntando o histórico deste aparelho...</div>
   }
 
   if (estado.fase === 'erro') {
@@ -108,44 +122,41 @@ export default function Boot({ children }: { children: ReactNode }) {
 
   if (estado.fase === 'resultado') {
     const { r } = estado
-    const houveFusao = r.sessoesFundidas > 0 || r.execucoesFundidas > 0
+    const achouAlgo = r.sessoesRecuperadas > 0 || r.execucoesRecuperadas > 0
+
     return (
       <div className={styles.centro}>
         <div className={styles.box}>
-          <h2 className={styles.titulo}>Pronto, seu histórico está na nuvem</h2>
+          <h2 className={styles.titulo}>
+            {achouAlgo ? 'Recuperei o que estava só aqui' : 'Já estava tudo na nuvem'}
+          </h2>
 
           <ul className={styles.numeros}>
             <li>
-              <span>Rotinas</span>
-              <b>{r.rotinas}</b>
+              <span>Dias de treino recuperados</span>
+              <b>{r.sessoesRecuperadas}</b>
             </li>
             <li>
-              <span>Sessões</span>
-              <b>{r.sessoes}</b>
+              <span>Cargas e repetições recuperadas</span>
+              <b>{r.execucoesRecuperadas}</b>
             </li>
             <li>
-              <span>Exercícios registrados</span>
-              <b>{r.execucoes}</b>
+              <span>Dias que já estavam lá (preservados)</span>
+              <b>{r.sessoesJaExistiam}</b>
             </li>
           </ul>
 
-          {houveFusao && (
-            <p className={styles.texto}>
-              Encontrei registros repetidos no banco antigo e juntei:{' '}
-              {r.sessoesFundidas > 0 && (
-                <>
-                  <b>{r.sessoesFundidas}</b> sessão(ões) do mesmo treino no mesmo dia
-                </>
-              )}
-              {r.sessoesFundidas > 0 && r.execucoesFundidas > 0 && ' e '}
-              {r.execucoesFundidas > 0 && (
-                <>
-                  <b>{r.execucoesFundidas}</b> exercício(s) repetido(s) na mesma sessão
-                </>
-              )}
-              . Em cada caso ficou a versão mais completa, então nenhuma carga foi perdida.
-            </p>
-          )}
+          <p className={styles.texto}>
+            Nada foi apagado: onde a nuvem já tinha registro, ela ficou como estava, e
+            o banco deste navegador continua intacto como cópia de segurança.
+            {r.execucoesSemPar > 0 && (
+              <>
+                {' '}
+                <b>{r.execucoesSemPar}</b> registro(s) antigo(s) apontavam pra exercícios
+                que não existem mais na rotina e ficaram de fora.
+              </>
+            )}
+          </p>
 
           <div className={styles.acoes}>
             <button
@@ -165,10 +176,10 @@ export default function Boot({ children }: { children: ReactNode }) {
   return (
     <div className={styles.centro}>
       <div className={styles.box}>
-        <h2 className={styles.titulo}>Encontrei treinos salvos neste navegador</h2>
+        <h2 className={styles.titulo}>Encontrei treinos salvos neste aparelho</h2>
         <p className={styles.texto}>
-          Posso enviar esse histórico pra sua conta — as cargas e as repetições vão
-          junto, ligadas aos mesmos exercícios.
+          O app antigo guardava tudo dentro do navegador, e isso não atravessa de um
+          aparelho pro outro. Posso juntar esse histórico com o que já está na sua conta.
         </p>
 
         <ul className={styles.numeros}>
@@ -177,7 +188,7 @@ export default function Boot({ children }: { children: ReactNode }) {
             <b>{estado.local.rotinas}</b>
           </li>
           <li>
-            <span>Sessões</span>
+            <span>Dias de treino</span>
             <b>{estado.local.sessoes}</b>
           </li>
           <li>
@@ -187,19 +198,16 @@ export default function Boot({ children }: { children: ReactNode }) {
         </ul>
 
         <p className={styles.texto}>
-          {estado.nuvemOcupada
-            ? 'Sua conta na nuvem já tem alguma coisa — provavelmente sobra de uma tentativa anterior. Ela será substituída por este histórico.'
-            : 'Sua conta na nuvem está vazia.'}{' '}
-          Nada é apagado do navegador: os dados locais continuam onde estão, como cópia
-          de segurança.
+          <b>Nada é apagado.</b> Onde a nuvem já tem um treino, ela ganha; só entra o
+          que estava faltando lá. Pode rodar de novo depois sem duplicar nada.
         </p>
 
         <div className={styles.acoes}>
           <button type="button" className={styles.principal} onClick={enviar}>
-            Enviar pra nuvem
+            Juntar com a nuvem
           </button>
           <button type="button" className={styles.secundario} onClick={pular}>
-            Começar do zero
+            Agora não
           </button>
         </div>
       </div>

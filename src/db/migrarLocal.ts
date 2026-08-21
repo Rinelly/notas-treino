@@ -1,28 +1,35 @@
 /* =========================================================
-   migrarLocal.ts — leva o histórico do IndexedDB pra nuvem
+   migrarLocal.ts — traz o histórico do navegador pra nuvem
 
-   Roda uma vez. Depois disso o Dexie fica só como arquivo
-   morto: nada mais escreve nele, mas os dados continuam lá
-   caso algo dê errado, então nada é perdido no caminho.
+   O app antigo guardava tudo no IndexedDB, que é POR NAVEGADOR:
+   o histórico do computador e o do celular são dois montes
+   separados, e nenhum dos dois conhece o outro.
 
-   Duas coisas que o banco local permitia e o Postgres não:
+   Por isso esta rotina JUNTA em vez de substituir.
 
-   1. duas sessões da MESMA rotina no MESMO dia. No Dexie não
-      havia constraint; aqui existe unique (user, rotina, data).
-      Então sessões repetidas são fundidas numa só, e tudo que
-      estava pendurado nelas vai junto.
+   Regras, na ordem de importância:
 
-   2. duas execuções do mesmo exercício na mesma sessão. Idem:
-      ficam com a versão mais completa das duas.
+   1. NADA é apagado. Nem da nuvem, nem do navegador. Se um
+      treino já está na nuvem, o local é ignorado — a nuvem
+      sempre ganha, porque é onde os dois aparelhos escrevem.
 
-   A migração também é idempotente: ela limpa o que estiver na
-   nuvem antes de enviar. Assim, se falhar no meio, tentar de
-   novo funciona em vez de duplicar tudo.
+   2. Rotina é casada pelo NOME, não pelo id. Os ids do Dexie
+      são locais e não querem dizer nada no Postgres; o nome é
+      o que sobrevive à travessia.
+
+   3. Exercício também é casado pelo nome (+ categoria, porque
+      "Caminhada inclinada" aparece como aquecimento E como
+      cardio no mesmo treino). Sem isso as cargas antigas
+      entrariam apontando pra exercícios que não existem, e o
+      treino apareceria no calendário com 0 de 8 feitos.
+
+   4. Pode rodar quantas vezes quiser. Na segunda vez não
+      acontece nada, porque tudo já vai estar lá.
    ========================================================= */
 
 import { db } from './db'
 import { supabase, uid } from '../lib/supabase'
-import type { Execucao, ExercicioRotina } from '../types'
+import type { Execucao, ExercicioRotina, Rotina } from '../types'
 
 const MARCA = 'treino.migrado.v1'
 
@@ -32,14 +39,79 @@ export interface ResumoLocal {
   execucoes: number
 }
 
-export interface ResultadoMigracao extends ResumoLocal {
-  /** sessões repetidas (mesma rotina, mesmo dia) que viraram uma só */
-  sessoesFundidas: number
-  /** execuções repetidas do mesmo exercício que viraram uma só */
-  execucoesFundidas: number
+export interface ResultadoMigracao {
+  /** rotinas que não existiam na nuvem e foram criadas */
+  rotinasCriadas: number
+  /** dias de treino que estavam só no navegador e voltaram */
+  sessoesRecuperadas: number
+  /** dias que já estavam na nuvem e foram deixados como estavam */
+  sessoesJaExistiam: number
+  /** cargas/repetições que estavam só no navegador e voltaram */
+  execucoesRecuperadas: number
+  /** registros que já estavam na nuvem e foram preservados */
+  execucoesJaExistiam: number
+  /** execuções que não deu pra casar com nenhum exercício da rotina */
+  execucoesSemPar: number
 }
 
-/** o que existe hoje no navegador */
+/* ----------------------------------------------------------
+   utilidades
+   ---------------------------------------------------------- */
+
+/** "Inferiores A (Quadríceps)" e "inferiores a (quadriceps)" viram a mesma coisa */
+function norm(s: string | null | undefined) {
+  return (s ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function checar<T>(res: { data: T; error: { message: string } | null }): T {
+  if (res.error) throw new Error(res.error.message)
+  return res.data
+}
+
+/** quantos campos preenchidos essa execução tem — usado pra escolher a melhor */
+function riqueza(e: Execucao) {
+  return (e.concluido ? 1 : 0) + (e.carga != null ? 1 : 0) + (e.repsFeitas != null ? 1 : 0)
+}
+
+/**
+ * De-para entre os exercícios de duas versões da mesma rotina.
+ *
+ * Casa por nome + categoria e consome cada par uma vez só, então
+ * exercícios repetidos (o aquecimento e o cardio com o mesmo nome)
+ * não roubam o lugar um do outro.
+ */
+function casarExercicios(locais: ExercicioRotina[], nuvem: ExercicioRotina[]) {
+  const mapa = new Map<string, string>()
+  const usados = new Set<number>()
+
+  const acha = (ex: ExercicioRotina, exigirCategoria: boolean) =>
+    nuvem.findIndex(
+      (n, i) =>
+        !usados.has(i) &&
+        norm(n.nome) === norm(ex.nome) &&
+        (!exigirCategoria || n.categoria === ex.categoria),
+    )
+
+  for (const ex of locais) {
+    let i = acha(ex, true)
+    if (i < 0) i = acha(ex, false) // categoria pode ter sido reclassificada
+    if (i < 0) continue
+    usados.add(i)
+    mapa.set(ex.id, nuvem[i].id)
+  }
+  return mapa
+}
+
+/* ----------------------------------------------------------
+   leitura
+   ---------------------------------------------------------- */
+
+/** o que existe hoje NESTE navegador */
 export async function lerResumoLocal(): Promise<ResumoLocal> {
   try {
     const [rotinas, sessoes, execucoes] = await Promise.all([
@@ -49,7 +121,7 @@ export async function lerResumoLocal(): Promise<ResumoLocal> {
     ])
     return { rotinas, sessoes, execucoes }
   } catch {
-    // banco local nem existe nesta máquina
+    // banco local nem existe neste aparelho
     return { rotinas: 0, sessoes: 0, execucoes: 0 }
   }
 }
@@ -79,28 +151,24 @@ export async function nuvemTemDados(): Promise<boolean> {
   return (count ?? 0) > 0
 }
 
-/** apaga tudo desta conta na nuvem — o cascade cuida dos filhos */
-async function limparNuvem() {
-  for (const tabela of ['execucoes', 'sessoes', 'rotinas'] as const) {
-    const { error } = await supabase.from(tabela).delete().gte('id', 0)
-    if (error) throw new Error(`limpando ${tabela}: ${error.message}`)
-  }
-}
+/* ----------------------------------------------------------
+   a junção
+   ---------------------------------------------------------- */
 
-/** quantos campos preenchidos essa execução tem — usado pra escolher a melhor */
-function riqueza(e: Execucao) {
-  return (e.concluido ? 1 : 0) + (e.carga != null ? 1 : 0) + (e.repsFeitas != null ? 1 : 0)
-}
+type RotinaRow = { id: number; nome: string; exercicios: ExercicioRotina[] | null }
+type SessaoRow = { id: number; rotina_id: number; data: string }
 
-/**
- * Copia tudo pra nuvem preservando os vínculos.
- *
- * Os ids do Dexie são numéricos e locais; os do Postgres são
- * outros. Por isso guardamos um de-para a cada etapa, senão as
- * sessões apontariam pra rotinas erradas.
- */
 export async function migrarParaNuvem(): Promise<ResultadoMigracao> {
   const userId = await uid()
+
+  const saida: ResultadoMigracao = {
+    rotinasCriadas: 0,
+    sessoesRecuperadas: 0,
+    sessoesJaExistiam: 0,
+    execucoesRecuperadas: 0,
+    execucoesJaExistiam: 0,
+    execucoesSemPar: 0,
+  }
 
   const [rotinasLocais, sessoesLocais, execucoesLocais] = await Promise.all([
     db.rotinas.toArray(),
@@ -108,132 +176,152 @@ export async function migrarParaNuvem(): Promise<ResultadoMigracao> {
     db.execucoes.toArray(),
   ])
 
-  // começa do zero: torna a operação repetível sem duplicar
-  await limparNuvem()
+  /* ---------- rotinas: casa pelo nome, cria só o que falta ---------- */
+  let rotinasNuvem = (checar(
+    await supabase.from('rotinas').select('id, nome, exercicios').order('id'),
+  ) as RotinaRow[] | null) ?? []
 
-  const saida: ResultadoMigracao = {
-    rotinas: 0,
-    sessoes: 0,
-    execucoes: 0,
-    sessoesFundidas: 0,
-    execucoesFundidas: 0,
+  const faltando: Rotina[] = rotinasLocais.filter(
+    (r) => !rotinasNuvem.some((n) => norm(n.nome) === norm(r.nome)),
+  )
+
+  if (faltando.length) {
+    const criadas = checar(
+      await supabase
+        .from('rotinas')
+        .insert(
+          faltando.map((r) => ({
+            user_id: userId,
+            dia_semana: r.diaSemana,
+            nome: r.nome,
+            exercicios: (r.exercicios ?? []) as ExercicioRotina[],
+          })),
+        )
+        .select('id, nome, exercicios'),
+    ) as RotinaRow[] | null
+
+    rotinasNuvem = [...rotinasNuvem, ...(criadas ?? [])]
+    saida.rotinasCriadas = criadas?.length ?? 0
   }
 
-  /* ---------- rotinas ---------- */
+  // id local -> id na nuvem, e id de exercício local -> id na nuvem
   const deParaRotina = new Map<number, number>()
-  if (rotinasLocais.length) {
-    const { data, error } = await supabase
-      .from('rotinas')
-      .insert(
-        rotinasLocais.map((r) => ({
-          user_id: userId,
-          dia_semana: r.diaSemana,
-          nome: r.nome,
-          exercicios: (r.exercicios ?? []) as ExercicioRotina[],
-        })),
-      )
-      .select('id')
-    if (error) throw new Error(`enviando rotinas: ${error.message}`)
-    if ((data?.length ?? 0) !== rotinasLocais.length) {
-      throw new Error('o banco não devolveu todas as rotinas enviadas')
-    }
+  const deParaExercicio = new Map<string, string>()
 
-    // insert devolve na mesma ordem em que foi enviado
-    data!.forEach((row, i) => {
-      const idLocal = rotinasLocais[i]?.id
-      if (idLocal != null) deParaRotina.set(idLocal, row.id)
-    })
-    saida.rotinas = data!.length
+  for (const r of rotinasLocais) {
+    if (r.id == null) continue
+    const alvo = rotinasNuvem.find((n) => norm(n.nome) === norm(r.nome))
+    if (!alvo) continue
+    deParaRotina.set(r.id, alvo.id)
+    for (const [de, para] of casarExercicios(r.exercicios ?? [], alvo.exercicios ?? [])) {
+      deParaExercicio.set(de, para)
+    }
   }
 
-  /* ---------- sessões (com fusão das repetidas) ---------- */
+  /* ---------- sessões: insere só os dias que faltam ---------- */
   const candidatas = sessoesLocais.filter(
     (s) => s.id != null && s.rotinaId != null && deParaRotina.has(s.rotinaId) && s.data,
   )
 
-  // chave do que o Postgres considera duplicado
-  const chave = (rotinaId: number, data: string) => `${deParaRotina.get(rotinaId)}|${data}`
+  const chave = (rotinaNuvemId: number, data: string) => `${rotinaNuvemId}|${data}`
 
-  const unicas = new Map<string, { rotinaId: number; data: string; finalizada: boolean }>()
+  // funde sessões locais repetidas (o Dexie deixava; o Postgres não)
+  const unicas = new Map<string, { rotinaNuvemId: number; data: string; finalizada: boolean }>()
   for (const s of candidatas) {
-    const k = chave(s.rotinaId, s.data)
+    const rid = deParaRotina.get(s.rotinaId)!
+    const k = chave(rid, s.data)
     const jaTem = unicas.get(k)
-    if (jaTem) {
-      saida.sessoesFundidas++
-      // se qualquer uma das repetidas estava finalizada, a fundida fica finalizada
-      jaTem.finalizada = jaTem.finalizada || !!s.finalizada
-    } else {
-      unicas.set(k, { rotinaId: s.rotinaId, data: s.data, finalizada: !!s.finalizada })
-    }
+    if (jaTem) jaTem.finalizada = jaTem.finalizada || !!s.finalizada
+    else unicas.set(k, { rotinaNuvemId: rid, data: s.data, finalizada: !!s.finalizada })
   }
 
-  const listaUnicas = [...unicas.entries()]
-  const chaveParaNovoId = new Map<string, number>()
+  const sessoesNuvem = (checar(
+    await supabase.from('sessoes').select('id, rotina_id, data'),
+  ) as SessaoRow[] | null) ?? []
 
-  if (listaUnicas.length) {
-    const { data, error } = await supabase
-      .from('sessoes')
-      .insert(
-        listaUnicas.map(([, s]) => ({
-          user_id: userId,
-          rotina_id: deParaRotina.get(s.rotinaId)!,
-          data: s.data,
-          finalizada: s.finalizada,
-        })),
-      )
-      .select('id')
-    if (error) throw new Error(`enviando sessões: ${error.message}`)
-    if ((data?.length ?? 0) !== listaUnicas.length) {
-      throw new Error('o banco não devolveu todas as sessões enviadas')
-    }
+  const jaNaNuvem = new Set(sessoesNuvem.map((s) => chave(s.rotina_id, s.data)))
+  const novas = [...unicas.entries()].filter(([k]) => !jaNaNuvem.has(k))
+  saida.sessoesJaExistiam = unicas.size - novas.length
 
-    data!.forEach((row, i) => chaveParaNovoId.set(listaUnicas[i][0], row.id))
-    saida.sessoes = data!.length
+  if (novas.length) {
+    const criadas = checar(
+      await supabase
+        .from('sessoes')
+        .insert(
+          novas.map(([, s]) => ({
+            user_id: userId,
+            rotina_id: s.rotinaNuvemId,
+            data: s.data,
+            finalizada: s.finalizada,
+          })),
+        )
+        .select('id, rotina_id, data'),
+    ) as SessaoRow[] | null
+
+    sessoesNuvem.push(...(criadas ?? []))
+    saida.sessoesRecuperadas = criadas?.length ?? 0
   }
 
-  // toda sessão local — inclusive as repetidas — aponta pro id novo
+  // agora toda sessão local sabe seu id na nuvem
+  const idNuvemPorChave = new Map(sessoesNuvem.map((s) => [chave(s.rotina_id, s.data), s.id]))
   const deParaSessao = new Map<number, number>()
   for (const s of candidatas) {
-    const novo = chaveParaNovoId.get(chave(s.rotinaId, s.data))
-    if (novo != null) deParaSessao.set(s.id!, novo)
+    const id = idNuvemPorChave.get(chave(deParaRotina.get(s.rotinaId)!, s.data))
+    if (id != null) deParaSessao.set(s.id!, id)
   }
 
-  /* ---------- execuções (com fusão das repetidas) ---------- */
+  /* ---------- execuções: só as que a nuvem ainda não tem ---------- */
   const melhores = new Map<string, { sessaoId: number; exercicioId: string; e: Execucao }>()
   for (const e of execucoesLocais) {
-    const novaSessao = deParaSessao.get(e.sessaoId)
-    if (novaSessao == null || !e.exercicioId) continue
+    const sessaoId = deParaSessao.get(e.sessaoId)
+    if (sessaoId == null || !e.exercicioId) continue
 
-    const k = `${novaSessao}|${e.exercicioId}`
-    const atual = melhores.get(k)
-    if (!atual) {
-      melhores.set(k, { sessaoId: novaSessao, exercicioId: e.exercicioId, e })
+    const exercicioId = deParaExercicio.get(e.exercicioId)
+    if (!exercicioId) {
+      saida.execucoesSemPar++
       continue
     }
-    saida.execucoesFundidas++
-    // fica a mais completa das duas
-    if (riqueza(e) > riqueza(atual.e)) {
-      melhores.set(k, { sessaoId: novaSessao, exercicioId: e.exercicioId, e })
+
+    const k = `${sessaoId}|${exercicioId}`
+    const atual = melhores.get(k)
+    if (!atual || riqueza(e) > riqueza(atual.e)) {
+      melhores.set(k, { sessaoId, exercicioId, e })
     }
   }
 
-  const linhas = [...melhores.values()].map(({ sessaoId, exercicioId, e }) => ({
-    user_id: userId,
-    sessao_id: sessaoId,
-    exercicio_id: exercicioId,
-    concluido: e.concluido ?? false,
-    carga: e.carga ?? null,
-    reps_feitas: e.repsFeitas ?? null,
-  }))
+  if (melhores.size) {
+    const ids = [...new Set([...melhores.values()].map((m) => m.sessaoId))]
+    const existentes = (checar(
+      await supabase.from('execucoes').select('sessao_id, exercicio_id').in('sessao_id', ids),
+    ) as { sessao_id: number; exercicio_id: string }[] | null) ?? []
 
-  const LOTE = 500
-  for (let i = 0; i < linhas.length; i += LOTE) {
-    const fatia = linhas.slice(i, i + LOTE)
-    const { error } = await supabase
-      .from('execucoes')
-      .upsert(fatia, { onConflict: 'sessao_id,exercicio_id' })
-    if (error) throw new Error(`enviando execuções: ${error.message}`)
-    saida.execucoes += fatia.length
+    const jaTem = new Set(existentes.map((x) => `${x.sessao_id}|${x.exercicio_id}`))
+
+    const linhas = [...melhores.entries()]
+      .filter(([k]) => !jaTem.has(k))
+      .map(([, { sessaoId, exercicioId, e }]) => ({
+        user_id: userId,
+        sessao_id: sessaoId,
+        exercicio_id: exercicioId,
+        concluido: e.concluido ?? false,
+        carga: e.carga ?? null,
+        reps_feitas: e.repsFeitas ?? null,
+      }))
+
+    saida.execucoesJaExistiam = melhores.size - linhas.length
+
+    const LOTE = 500
+    for (let i = 0; i < linhas.length; i += LOTE) {
+      const fatia = linhas.slice(i, i + LOTE)
+      // ignoreDuplicates: se alguém gravou pelo outro aparelho no meio
+      // disso, o registro de lá vale — o daqui é o antigo
+      checar(
+        await supabase
+          .from('execucoes')
+          .upsert(fatia, { onConflict: 'sessao_id,exercicio_id', ignoreDuplicates: true }),
+      )
+      saida.execucoesRecuperadas += fatia.length
+    }
   }
 
   marcarComoMigrado()
