@@ -1,33 +1,91 @@
+/* =========================================================
+   Tokens — paleta Oceano
+
+   Três estados, não dois. O padrão é seguir o sistema: nesse
+   caso o <html> não tem atributo nenhum e quem decide é o
+   prefers-color-scheme. Quando você escolhe no botão da barra,
+   entra data-tema="claro" ou "escuro" e a escolha ganha do
+   sistema nos dois sentidos.
+
+   Por isso o :root nu carrega a paleta CLARA inteira, e os dois
+   blocos abaixo só redefinem os tokens. Nenhuma cor pode existir
+   só dentro de um deles — senão o estado "segue o sistema" fica
+   sem ela.
+
+   O modo claro não é o escuro invertido: sobre fundo claro o
+   acento precisa ser mais fechado e mais saturado, senão some.
+   ========================================================= */
+
 :root {
-  --bg: #0a0a0b;
-  --bg-elevated: #151517;
-  --bg-elevated-2: #1e1e21;
-  --border: #262629;
-  --border-strong: #38383d;
-  --text: #f2f1ee;
-  --text-muted: #8f8f94;
-  --text-subtle: #5c5c60;
+  --bg: #f2f7f8;
+  --bg-elevated: #ffffff;
+  --bg-elevated-2: #e7eff1;
+  --border: #dae5e8;
+  --border-strong: #b9c9ce;
+  --text: #0f191c;
+  --text-muted: #53656b;
+  --text-subtle: #7e9298;
 
-  --accent: #7fae9d;
-  --accent-strong: #9bc4b4;
-  --accent-bg: rgba(127, 174, 157, 0.12);
-  --accent-ink: #0a0a0b;
+  --accent: #0f6f7a;
+  --accent-strong: #0a565f;
+  --accent-bg: #0f6f7a24;
+  --accent-ink: #ffffff;
 
-  --danger: #d97066;
-  --danger-bg: rgba(217, 112, 102, 0.12);
+  --danger: #b2423a;
+  --danger-bg: #b2423a1f;
 
   /* tipos de tarefa do Foco */
-  --cor-trabalho: #e0a458;
-  --cor-estudo: #6ba8dd;
+  --cor-trabalho: #8a5a12;
+  --cor-estudo: #4a44b8;
 
+  --shadow: 0 1px 2px rgba(15, 25, 28, 0.06), 0 8px 24px -14px rgba(15, 25, 28, 0.28);
+  color-scheme: light;
+}
+
+@mixin oceanoEscuro {
+  --bg: #080b0d;
+  --bg-elevated: #101619;
+  --bg-elevated-2: #182024;
+  --border: #20292e;
+  --border-strong: #33414a;
+  --text: #eef3f5;
+  --text-muted: #88969d;
+  --text-subtle: #667379;
+
+  --accent: #45b3bd;
+  --accent-strong: #6fcdd4;
+  --accent-bg: #45b3bd1f;
+  --accent-ink: #04100f;
+
+  --danger: #e0736a;
+  --danger-bg: #e0736a1f;
+
+  --cor-trabalho: #e8a04d;
+  --cor-estudo: #8f8cf0;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+/* sem escolha salva: manda o sistema — mas "claro" no botão ganha dele */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='claro']) {
+    @include oceanoEscuro;
+  }
+}
+
+/* escolha explícita: ganha do sistema também no outro sentido */
+:root[data-tema='escuro'] {
+  @include oceanoEscuro;
+}
+
+:root {
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --radius: 14px;
   --radius-sm: 10px;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
 
   font: 16px/145% var(--sans);
   letter-spacing: -0.01em;
-  color-scheme: dark;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -42,6 +100,8 @@
 
 body {
   margin: 0;
+  background: var(--bg);
+  color: var(--text);
   min-height: 100svh;
   padding-bottom: env(safe-area-inset-bottom);
 }

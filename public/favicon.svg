@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Foco e Treino">
   <!-- fundo: mesma cor do app -->
-  <rect width="64" height="64" rx="14" fill="#0f1113"/>
+  <rect width="64" height="64" rx="14" fill="#0d1417"/>
   <!-- trilha do anel -->
-  <circle cx="32" cy="32" r="18.5" fill="none" stroke="#2b3a35" stroke-width="7"/>
+  <circle cx="32" cy="32" r="18.5" fill="none" stroke="#26383d" stroke-width="7"/>
   <!-- progresso: ~70% da volta, começando no topo -->
-  <circle cx="32" cy="32" r="18.5" fill="none" stroke="#7fae9d" stroke-width="7"
+  <circle cx="32" cy="32" r="18.5" fill="none" stroke="#45b3bd" stroke-width="7"
           stroke-linecap="round" stroke-dasharray="81.4 116.2"
           transform="rotate(-90 32 32)"/>
 </svg>

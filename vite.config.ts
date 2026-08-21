@@ -32,8 +32,8 @@ export default defineConfig({
         lang: 'pt-BR',
         short_name: 'Foco',
         description: 'Horas de foco e registro de treinos, num lugar só',
-        theme_color: '#0a0a0b',
-        background_color: '#0a0a0b',
+        theme_color: '#080b0d',
+        background_color: '#080b0d',
         display: 'standalone',
         start_url: '/',
         icons: [

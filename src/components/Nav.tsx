@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
+import BotaoTema from './BotaoTema'
 import s from './Nav.module.scss'
 
 const abas = [
@@ -27,6 +28,8 @@ export default function Nav() {
       ))}
 
       <span className={s.espaco} />
+
+      <BotaoTema />
 
       <button type="button" className={s.sair} onClick={() => void sair()}>
         Sair

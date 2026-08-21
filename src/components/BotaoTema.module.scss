@@ -1,0 +1,32 @@
+.botao {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-muted);
+  padding: 0;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text);
+    background: var(--bg-elevated);
+  }
+}
+
+/* o pontinho marca "estou seguindo o sistema", que é diferente
+   de ter escolhido esse modo na mão */
+.ponto {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
