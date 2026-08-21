@@ -12,7 +12,19 @@ function pad(n: number) {
   return String(n).padStart(2, '0')
 }
 
-export default function FrequencyCalendar() {
+/**
+ * `aoEscolherDia` chega da tela de Treinos. Sem ela o calendário
+ * continua sendo só um quadro na parede — com ela, dá pra abrir
+ * (ou registrar) o treino de um dia passado, que é como se tapa
+ * um buraco no histórico quando a sincronização falhou.
+ */
+export default function FrequencyCalendar({
+  aoEscolherDia,
+  recarregar = 0,
+}: {
+  aoEscolherDia?: (data: string) => void
+  recarregar?: number
+}) {
   const agora = new Date()
   const [ano, setAno] = useState(agora.getFullYear())
   const [mes, setMes] = useState(agora.getMonth())
@@ -24,7 +36,7 @@ export default function FrequencyCalendar() {
       setComProgresso(comProgresso)
       setFinalizados(finalizados)
     })
-  }, [ano, mes])
+  }, [ano, mes, recarregar])
 
   function mesAnterior() {
     if (mes === 0) {
@@ -88,11 +100,29 @@ export default function FrequencyCalendar() {
           if (treinado) classes.push(styles.treinado)
           if (ehHoje) classes.push(styles.hoje)
 
+          // dia futuro não tem treino pra registrar
+          const futuro = dataStr > hojeStr
+          if (!aoEscolherDia || futuro) {
+            return (
+              <div key={i} className={classes.join(' ')}>
+                {dia}
+                {finalizado && <span className={styles.marca}>✓</span>}
+              </div>
+            )
+          }
+
+          classes.push(styles.clicavel)
           return (
-            <div key={i} className={classes.join(' ')}>
+            <button
+              key={i}
+              type="button"
+              className={classes.join(' ')}
+              onClick={() => aoEscolherDia(dataStr)}
+              aria-label={`Treinos de ${dia}/${pad(mes + 1)}`}
+            >
               {dia}
               {finalizado && <span className={styles.marca}>✓</span>}
-            </div>
+            </button>
           )
         })}
       </div>

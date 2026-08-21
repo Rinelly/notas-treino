@@ -53,6 +53,10 @@
 
 .dia {
   position: relative;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
   width: 28px;
   height: 28px;
   margin: 0 auto;
@@ -90,4 +94,20 @@
 .hoje {
   box-shadow: 0 0 0 1.5px var(--accent-strong);
   color: var(--text);
+}
+
+/* dia que aceita clique — o desenho vem de .dia; aqui só o afeto.
+   De propósito não mexe em background: .treinado precisa continuar
+   ganhando o fundo dele. */
+.clicavel {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover {
+    box-shadow: 0 0 0 1.5px var(--border-strong);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }

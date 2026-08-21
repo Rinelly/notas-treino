@@ -119,8 +119,33 @@ export async function getSessao(id: number): Promise<Sessao | null> {
  * que garante isso, então dois cliques rápidos não criam duplicata.
  */
 export async function getOrCriarSessaoHoje(rotinaId: number): Promise<Sessao> {
-  const data = hoje()
+  return getOrCriarSessaoEm(rotinaId, hoje())
+}
 
+/** as sessões que existem num dia qualquer, com a rotina junto */
+export async function sessoesDoDia(data: string): Promise<{ sessao: Sessao; rotina: Rotina }[]> {
+  const rows = (checar(
+    await supabase.from('sessoes').select('id, rotina_id, data, finalizada').eq('data', data),
+  ) as SessaoRow[] | null) ?? []
+  if (rows.length === 0) return []
+
+  const rotinas = await getRotinas()
+  return rows
+    .map((r) => {
+      const rotina = rotinas.find((x) => x.id === r.rotina_id)
+      return rotina ? { sessao: paraSessao(r), rotina } : null
+    })
+    .filter((x): x is { sessao: Sessao; rotina: Rotina } => x !== null)
+}
+
+/**
+ * A mesma coisa, mas pra qualquer data.
+ *
+ * Existe porque sincronização falha: se um treino não chegou ao
+ * banco no dia, sem isso não há como registrá-lo depois — e o
+ * histórico fica com um buraco pra sempre.
+ */
+export async function getOrCriarSessaoEm(rotinaId: number, data: string): Promise<Sessao> {
   const existente = checar(
     await supabase
       .from('sessoes')
