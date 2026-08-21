@@ -296,7 +296,12 @@ export default function Hoje() {
         </div>
       )}
 
-      <div className={s.versao}>versão {__VERSAO__}</div>
+      <div className={s.versao}>
+        versão {__VERSAO__} ·{' '}
+        <button type="button" className={s.linkVersao} onClick={() => navigate('/diagnostico')}>
+          diagnóstico
+        </button>
+      </div>
     </div>
   )
 }

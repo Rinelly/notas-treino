@@ -9,6 +9,23 @@ import Hoje from './pages/Hoje'
 import Foco from './pages/Foco'
 import Treinos from './pages/Home'
 import Sessao from './pages/Sessao'
+import Diagnostico from './pages/Diagnostico'
+
+/** o app de verdade — só entra depois do Boot */
+function Miolo() {
+  return (
+    <Boot>
+      <Nav />
+      <Routes>
+        <Route path="/" element={<Hoje />} />
+        <Route path="/foco" element={<Foco />} />
+        <Route path="/treinos" element={<Treinos />} />
+        <Route path="/sessao/:sessaoId" element={<Sessao />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Boot>
+  )
+}
 
 function Conteudo() {
   const { user, carregando } = useAuth()
@@ -17,18 +34,14 @@ function Conteudo() {
   if (!user) return <Login />
 
   return (
-    <Boot>
-      <BrowserRouter>
-        <Nav />
-        <Routes>
-          <Route path="/" element={<Hoje />} />
-          <Route path="/foco" element={<Foco />} />
-          <Route path="/treinos" element={<Treinos />} />
-          <Route path="/sessao/:sessaoId" element={<Sessao />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </Boot>
+    <BrowserRouter>
+      <Routes>
+        {/* fora do Boot de propósito: é a tela que precisa abrir
+            justamente quando alguma coisa está errada no Boot */}
+        <Route path="/diagnostico" element={<Diagnostico />} />
+        <Route path="*" element={<Miolo />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 

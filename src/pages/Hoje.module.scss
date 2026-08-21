@@ -302,3 +302,14 @@
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
+
+.linkVersao {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
