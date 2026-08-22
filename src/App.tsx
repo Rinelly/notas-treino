@@ -11,7 +11,6 @@ import Treinos from './pages/Home'
 import Sessao from './pages/Sessao'
 import Diagnostico from './pages/Diagnostico'
 
-/** o app de verdade — só entra depois do Boot */
 function Miolo() {
   return (
     <Boot>
