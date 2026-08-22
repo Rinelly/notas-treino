@@ -1,21 +1,3 @@
-/* =========================================================
-   Tokens — paleta Oceano
-
-   Três estados, não dois. O padrão é seguir o sistema: nesse
-   caso o <html> não tem atributo nenhum e quem decide é o
-   prefers-color-scheme. Quando você escolhe no botão da barra,
-   entra data-tema="claro" ou "escuro" e a escolha ganha do
-   sistema nos dois sentidos.
-
-   Por isso o :root nu carrega a paleta CLARA inteira, e os dois
-   blocos abaixo só redefinem os tokens. Nenhuma cor pode existir
-   só dentro de um deles — senão o estado "segue o sistema" fica
-   sem ela.
-
-   O modo claro não é o escuro invertido: sobre fundo claro o
-   acento precisa ser mais fechado e mais saturado, senão some.
-   ========================================================= */
-
 :root {
   --bg: #f2f7f8;
   --bg-elevated: #ffffff;
@@ -38,7 +20,8 @@
   --cor-trabalho: #8a5a12;
   --cor-estudo: #4a44b8;
 
-  --shadow: 0 1px 2px rgba(15, 25, 28, 0.06), 0 8px 24px -14px rgba(15, 25, 28, 0.28);
+  --shadow:
+    0 1px 2px rgba(15, 25, 28, 0.06), 0 8px 24px -14px rgba(15, 25, 28, 0.28);
   color-scheme: light;
 }
 
@@ -67,20 +50,18 @@
   color-scheme: dark;
 }
 
-/* sem escolha salva: manda o sistema — mas "claro" no botão ganha dele */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-tema='claro']) {
+  :root:not([data-tema="claro"]) {
     @include oceanoEscuro;
   }
 }
 
-/* escolha explícita: ganha do sistema também no outro sentido */
-:root[data-tema='escuro'] {
+:root[data-tema="escuro"] {
   @include oceanoEscuro;
 }
 
 :root {
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
   --radius: 14px;
   --radius-sm: 10px;
 
@@ -111,10 +92,6 @@ body {
   display: flex;
   flex-direction: column;
 }
-
-/* O limite de largura saiu daqui e foi pra cada página:
-   as telas de treino seguem com cara de celular (480px),
-   as de foco e do painel usam a largura de computador. */
 
 h1,
 h2,

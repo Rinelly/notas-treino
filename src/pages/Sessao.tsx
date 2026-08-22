@@ -71,11 +71,6 @@ export default function Sessao() {
     setErroGravacao(e instanceof Error ? e.message : String(e))
   }
 
-  /**
-   * Marca primeiro na tela e grava depois. Se a gravação falhar,
-   * desfaz e mostra o motivo — antes o erro sumia em silêncio e a
-   * marcação simplesmente não acontecia.
-   */
   async function toggleConcluido(exercicioId: string) {
     if (!sessao) return
     const atual = execucoes.get(exercicioId)

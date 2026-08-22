@@ -5,7 +5,7 @@ import type { TipoTarefa } from '../foco/tipos'
 import { fmtHM, fmtRelogio, dataCurta, hojeChave } from '../lib/datas'
 import s from './Foco.module.scss'
 
-const ALTURA_BARRA = 76 // precisa bater com .pilha no CSS
+const ALTURA_BARRA = 76 
 const ALTURA_ROTULO = 20
 
 export default function Foco() {
@@ -22,12 +22,10 @@ export default function Foco() {
     },
   })
 
-  // o seletor de tipo acompanha a preferência salva
   useEffect(() => {
     setTipoNovo(f.config.ultimoTipo)
   }, [f.config.ultimoTipo])
 
-  // título da aba vira o cronômetro
   useEffect(() => {
     const rotulo = t.modo === 'foco' ? 'Foco' : t.modo === 'curta' ? 'Pausa curta' : 'Pausa longa'
     document.title = (t.rodando ? fmtRelogio(t.restanteMs) + ' · ' : '') + rotulo
@@ -36,7 +34,6 @@ export default function Foco() {
     }
   }, [t.modo, t.rodando, t.restanteMs])
 
-  // pede permissão de notificação no primeiro "Começar"
   const pediuRef = useRef(false)
   function comecar() {
     if (!pediuRef.current) {
@@ -52,7 +49,6 @@ export default function Foco() {
     t.alternar()
   }
 
-  // atalhos: espaço começa/pausa, R reinicia
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const alvo = e.target as HTMLElement | null

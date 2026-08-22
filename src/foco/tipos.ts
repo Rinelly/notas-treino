@@ -8,13 +8,12 @@ export interface Config {
   longaCada: number
   som: boolean
   ultimoTipo: TipoTarefa
-  /** dia do mês em que a mensalidade da academia vence (1-31), ou null */
   academiaDia: number | null
 }
 
 export interface Dia {
-  chave: string // "2026-08-19"
-  seg: number // total de segundos de foco
+  chave: string 
+  seg: number 
   segTrabalho: number
   segEstudo: number
   pomodoros: number
@@ -28,7 +27,6 @@ export interface Tarefa {
   feita: boolean
   pomodoros: number
   data: string | null
-  /** veio de um dia anterior sem ter sido concluída */
   herdada?: boolean
 }
 

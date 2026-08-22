@@ -19,7 +19,6 @@
   font-size: 13px;
   margin-top: 2px;
 
-  /* só a primeira letra: capitalize deixaria "19 De Ago" */
   &::first-letter {
     text-transform: uppercase;
   }

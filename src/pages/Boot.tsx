@@ -1,134 +1,140 @@
-/* =========================================================
-   Boot — o que roda entre o login e o app
-
-   Duas tarefas:
-   1. se ainda existir histórico neste navegador que nunca foi
-      pra nuvem, oferece a junção
-   2. senão, garante que as rotinas padrão existem
-   ========================================================= */
-
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   jaMigrou,
   lerResumoLocal,
   migrarParaNuvem,
   type ResultadoMigracao,
   type ResumoLocal,
-} from '../db/migrarLocal'
-import { seedRotinas } from '../db/seed'
-import styles from './Boot.module.scss'
+} from "../db/migrarLocal";
+import { seedRotinas } from "../db/seed";
+import styles from "./Boot.module.scss";
 
-const PULOU = 'treino.migracao.adiada'
+const PULOU = "treino.migracao.adiada";
 
 type Estado =
-  | { fase: 'verificando' }
-  | { fase: 'perguntar'; local: ResumoLocal }
-  | { fase: 'enviando' }
-  | { fase: 'resultado'; r: ResultadoMigracao }
-  | { fase: 'pronto' }
-  | { fase: 'erro'; msg: string }
+  | { fase: "verificando" }
+  | { fase: "perguntar"; local: ResumoLocal }
+  | { fase: "enviando" }
+  | { fase: "resultado"; r: ResultadoMigracao }
+  | { fase: "pronto" }
+  | { fase: "erro"; msg: string };
 
 export default function Boot({ children }: { children: ReactNode }) {
-  const [estado, setEstado] = useState<Estado>({ fase: 'verificando' })
+  const [estado, setEstado] = useState<Estado>({ fase: "verificando" });
 
   const verificar = useCallback(async () => {
     try {
-      setEstado({ fase: 'verificando' })
+      setEstado({ fase: "verificando" });
 
-      let pulouAgora = false
+      let pulouAgora = false;
       try {
-        pulouAgora = sessionStorage.getItem(PULOU) === '1'
+        pulouAgora = sessionStorage.getItem(PULOU) === "1";
       } catch {
         /* ignora */
       }
 
       if (!jaMigrou() && !pulouAgora) {
-        const local = await lerResumoLocal()
+        const local = await lerResumoLocal();
         if (local.rotinas > 0 || local.sessoes > 0) {
-          setEstado({ fase: 'perguntar', local })
-          return
+          setEstado({ fase: "perguntar", local });
+          return;
         }
       }
 
-      await seedRotinas()
-      setEstado({ fase: 'pronto' })
+      await seedRotinas();
+      setEstado({ fase: "pronto" });
     } catch (err) {
-      setEstado({ fase: 'erro', msg: err instanceof Error ? err.message : String(err) })
+      setEstado({
+        fase: "erro",
+        msg: err instanceof Error ? err.message : String(err),
+      });
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    verificar()
-  }, [verificar])
+    verificar();
+  }, [verificar]);
 
   async function enviar() {
-    setEstado({ fase: 'enviando' })
+    setEstado({ fase: "enviando" });
     try {
-      const r = await migrarParaNuvem()
-      setEstado({ fase: 'resultado', r })
+      const r = await migrarParaNuvem();
+      setEstado({ fase: "resultado", r });
     } catch (err) {
-      setEstado({ fase: 'erro', msg: err instanceof Error ? err.message : String(err) })
+      setEstado({
+        fase: "erro",
+        msg: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
-  /**
-   * "Agora não" só vale pra esta aba. De propósito: isso virou uma
-   * ferramenta de recuperação, e esconder pra sempre um histórico
-   * que ainda não subiu é justamente como se perde treino.
-   */
   async function pular() {
     try {
-      sessionStorage.setItem(PULOU, '1')
+      sessionStorage.setItem(PULOU, "1");
     } catch {
-      /* modo privado: só vai perguntar de novo */
+    
     }
     try {
-      await seedRotinas()
-      setEstado({ fase: 'pronto' })
+      await seedRotinas();
+      setEstado({ fase: "pronto" });
     } catch (err) {
-      setEstado({ fase: 'erro', msg: err instanceof Error ? err.message : String(err) })
+      setEstado({
+        fase: "erro",
+        msg: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
-  if (estado.fase === 'pronto') return <>{children}</>
+  if (estado.fase === "pronto") return <>{children}</>;
 
-  if (estado.fase === 'verificando') {
-    return <div className={styles.centro}>Carregando seus treinos...</div>
+  if (estado.fase === "verificando") {
+    return <div className={styles.centro}>Carregando seus treinos...</div>;
   }
 
-  if (estado.fase === 'enviando') {
-    return <div className={styles.centro}>Juntando o histórico deste aparelho...</div>
+  if (estado.fase === "enviando") {
+    return (
+      <div className={styles.centro}>
+        Juntando o histórico deste aparelho...
+      </div>
+    );
   }
 
-  if (estado.fase === 'erro') {
+  if (estado.fase === "erro") {
     return (
       <div className={styles.centro}>
         <div className={styles.box}>
           <h2 className={styles.titulo}>Não consegui carregar</h2>
           <p className={styles.texto}>
-            Se a mensagem falar em permissão ou em tabela que não existe, provavelmente
-            o <code>schema-treino.sql</code> ainda não foi rodado no Supabase.
+            Se a mensagem falar em permissão ou em tabela que não existe,
+            provavelmente o <code>schema-treino.sql</code> ainda não foi rodado
+            no Supabase.
           </p>
           <div className={styles.erro}>{estado.msg}</div>
           <div className={styles.acoes} style={{ marginTop: 16 }}>
-            <button type="button" className={styles.principal} onClick={verificar}>
+            <button
+              type="button"
+              className={styles.principal}
+              onClick={verificar}
+            >
               Tentar de novo
             </button>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
-  if (estado.fase === 'resultado') {
-    const { r } = estado
-    const achouAlgo = r.sessoesRecuperadas > 0 || r.execucoesRecuperadas > 0
+  if (estado.fase === "resultado") {
+    const { r } = estado;
+    const achouAlgo = r.sessoesRecuperadas > 0 || r.execucoesRecuperadas > 0;
 
     return (
       <div className={styles.centro}>
         <div className={styles.box}>
           <h2 className={styles.titulo}>
-            {achouAlgo ? 'Recuperei o que estava só aqui' : 'Já estava tudo na nuvem'}
+            {achouAlgo
+              ? "Recuperei o que estava só aqui"
+              : "Já estava tudo na nuvem"}
           </h2>
 
           <ul className={styles.numeros}>
@@ -147,13 +153,14 @@ export default function Boot({ children }: { children: ReactNode }) {
           </ul>
 
           <p className={styles.texto}>
-            Nada foi apagado: onde a nuvem já tinha registro, ela ficou como estava, e
-            o banco deste navegador continua intacto como cópia de segurança.
+            Nada foi apagado: onde a nuvem já tinha registro, ela ficou como
+            estava, e o banco deste navegador continua intacto como cópia de
+            segurança.
             {r.execucoesSemPar > 0 && (
               <>
-                {' '}
-                <b>{r.execucoesSemPar}</b> registro(s) antigo(s) apontavam pra exercícios
-                que não existem mais na rotina e ficaram de fora.
+                {" "}
+                <b>{r.execucoesSemPar}</b> registro(s) antigo(s) apontavam pra
+                exercícios que não existem mais na rotina e ficaram de fora.
               </>
             )}
           </p>
@@ -162,24 +169,27 @@ export default function Boot({ children }: { children: ReactNode }) {
             <button
               type="button"
               className={styles.principal}
-              onClick={() => setEstado({ fase: 'pronto' })}
+              onClick={() => setEstado({ fase: "pronto" })}
             >
               Abrir o app
             </button>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   // fase === 'perguntar'
   return (
     <div className={styles.centro}>
       <div className={styles.box}>
-        <h2 className={styles.titulo}>Encontrei treinos salvos neste aparelho</h2>
+        <h2 className={styles.titulo}>
+          Encontrei treinos salvos neste aparelho
+        </h2>
         <p className={styles.texto}>
-          O app antigo guardava tudo dentro do navegador, e isso não atravessa de um
-          aparelho pro outro. Posso juntar esse histórico com o que já está na sua conta.
+          O app antigo guardava tudo dentro do navegador, e isso não atravessa
+          de um aparelho pro outro. Posso juntar esse histórico com o que já
+          está na sua conta.
         </p>
 
         <ul className={styles.numeros}>
@@ -198,8 +208,9 @@ export default function Boot({ children }: { children: ReactNode }) {
         </ul>
 
         <p className={styles.texto}>
-          <b>Nada é apagado.</b> Onde a nuvem já tem um treino, ela ganha; só entra o
-          que estava faltando lá. Pode rodar de novo depois sem duplicar nada.
+          <b>Nada é apagado.</b> Onde a nuvem já tem um treino, ela ganha; só
+          entra o que estava faltando lá. Pode rodar de novo depois sem duplicar
+          nada.
         </p>
 
         <div className={styles.acoes}>
@@ -212,5 +223,5 @@ export default function Boot({ children }: { children: ReactNode }) {
         </div>
       </div>
     </div>
-  )
+  );
 }

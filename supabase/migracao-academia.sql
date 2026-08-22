@@ -1,13 +1,4 @@
--- =========================================================
--- Lembrete da academia
---
--- Rode no SQL Editor do Supabase antes de usar o card novo.
--- Sem isso o app abre normalmente, mas não consegue SALVAR o
--- dia do vencimento (a leitura já é tolerante à coluna faltando).
---
--- Pode rodar mais de uma vez sem problema.
--- =========================================================
-
+-- dia de mês de academia
 alter table public.settings
   add column if not exists academia_dia smallint;
 

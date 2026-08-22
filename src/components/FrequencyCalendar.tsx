@@ -12,12 +12,6 @@ function pad(n: number) {
   return String(n).padStart(2, '0')
 }
 
-/**
- * `aoEscolherDia` chega da tela de Treinos. Sem ela o calendário
- * continua sendo só um quadro na parede — com ela, dá pra abrir
- * (ou registrar) o treino de um dia passado, que é como se tapa
- * um buraco no histórico quando a sincronização falhou.
- */
 export default function FrequencyCalendar({
   aoEscolherDia,
   recarregar = 0,

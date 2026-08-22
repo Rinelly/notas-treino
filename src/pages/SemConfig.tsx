@@ -1,21 +1,16 @@
-import { faltando } from '../lib/supabase'
-import s from './SemConfig.module.scss'
+import { faltando } from "../lib/supabase";
+import s from "./SemConfig.module.scss";
 
-/**
- * Aparece quando o app subiu sem as chaves do Supabase.
- * Em produção isso quer dizer variável de ambiente faltando
- * no provedor; em desenvolvimento, .env.local não preenchido.
- */
 export default function SemConfig() {
-  const emProducao = import.meta.env.PROD
+  const emProducao = import.meta.env.PROD;
 
   return (
     <div className={s.page}>
       <div className={s.box}>
         <h1 className={s.titulo}>Faltam as chaves do Supabase</h1>
         <p className={s.texto}>
-          O app carregou, mas não sabe com qual banco falar. Sem isso não dá nem pra
-          fazer login.
+          O app carregou, mas não sabe com qual banco falar. Sem isso não dá nem
+          pra fazer login.
         </p>
 
         <div className={s.rotulo}>Não encontrei:</div>
@@ -32,16 +27,22 @@ export default function SemConfig() {
             <div className={s.rotulo}>Como resolver na Vercel</div>
             <ol className={s.passos}>
               <li>
-                Painel do projeto → <b>Settings</b> → <b>Environment Variables</b>
+                Painel do projeto → <b>Settings</b> →{" "}
+                <b>Environment Variables</b>
               </li>
-              <li>Adicione as variáveis acima, marcando Production, Preview e Development</li>
               <li>
-                <b>Deployments</b> → nos três pontinhos do último → <b>Redeploy</b>
+                Adicione as variáveis acima, marcando Production, Preview e
+                Development
+              </li>
+              <li>
+                <b>Deployments</b> → nos três pontinhos do último →{" "}
+                <b>Redeploy</b>
               </li>
             </ol>
             <p className={s.aviso}>
-              O passo 3 é obrigatório: o Vite grava esses valores dentro do JavaScript
-              na hora de compilar. Variável nova só vale num build novo.
+              O passo 3 é obrigatório: o Vite grava esses valores dentro do
+              JavaScript na hora de compilar. Variável nova só vale num build
+              novo.
             </p>
           </>
         ) : (
@@ -57,12 +58,12 @@ export default function SemConfig() {
               </li>
             </ol>
             <p className={s.aviso}>
-              O Vite só lê o <code>.env</code> quando inicia — salvar o arquivo com o
-              servidor rodando não adianta.
+              O Vite só lê o <code>.env</code> quando inicia — salvar o arquivo
+              com o servidor rodando não adianta.
             </p>
           </>
         )}
       </div>
     </div>
-  )
+  );
 }

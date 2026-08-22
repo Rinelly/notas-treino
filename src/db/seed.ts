@@ -80,14 +80,8 @@ const rotinas: Omit<Rotina, 'id'>[] = [
   },
 ]
 
-/** as rotinas padrão, expostas pra quem precisar (migração, testes) */
 export { rotinas as rotinasPadrao }
 
-/**
- * Cria as rotinas padrão só se a conta ainda não tiver nenhuma.
- * Roda uma vez, no primeiro login. Se você já migrou seus dados
- * do navegador, isto não faz nada.
- */
 export async function seedRotinas() {
   const { count, error } = await supabase
     .from('rotinas')
