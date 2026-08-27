@@ -2,13 +2,20 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
+}
+
+/* mesmo trilho das páginas: 1020px de teto e a mesma folga lateral */
+.interno {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 10px 32px;
 }
 
 .marca {
@@ -57,6 +64,13 @@
 
   &:hover {
     color: var(--text);
+  }
+}
+
+@media (max-width: 700px) {
+  .interno {
+    padding-left: 14px;
+    padding-right: 14px;
   }
 }
 

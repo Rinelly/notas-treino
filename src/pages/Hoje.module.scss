@@ -1,11 +1,32 @@
 .page {
-  max-width: 820px;
+  /* width: 100% é obrigatório aqui: o #root é flex em coluna, e num
+     filho de flex o `margin: 0 auto` no eixo transversal cancela o
+     stretch — o bloco encolhe até o conteúdo e o max-width nunca
+     chega a valer. Era por isso que os cartões ficavam estreitos
+     no computador, independente do número em max-width. */
+  width: 100%;
+  max-width: 960px;
   margin: 0 auto;
-  padding: 18px 10px 40px;
+  padding: 22px 32px 48px;
+
+  /* o respiro entre os blocos vem daqui, não de margens em cada cartão:
+     regra de irmão adjacente só vale quando TODO vizinho é um .card, e
+     bastou a .dupla entrar no meio pra o card de anotações colar no de cima */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* no celular a folga lateral encolhe: cada pixel gasto na margem
+   é um pixel a menos de cartão numa tela de 390px */
+@media (max-width: 700px) {
+  .page {
+    padding: 16px 14px 36px;
+  }
 }
 
 .cabecalho {
-  margin-bottom: 14px;
+  margin-bottom: 2px;
 }
 
 .saudacao {
@@ -56,10 +77,6 @@
   &:hover {
     border-color: var(--border-strong);
   }
-}
-
-.largo {
-  margin-top: 12px;
 }
 
 .rotulo {
@@ -164,7 +181,8 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: 10px 14px;
+  flex-wrap: wrap;
 }
 
 .linhaAcademia {
@@ -294,7 +312,7 @@
 
 /* carimbo do build — pra comparar computador e celular */
 .versao {
-  margin-top: 22px;
+  margin-top: 10px;
   text-align: center;
   color: var(--text-muted);
   opacity: 0.55;
