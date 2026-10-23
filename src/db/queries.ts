@@ -9,6 +9,7 @@ import {
   SEM_TREINO,
   type TreinoEscolhido,
 } from "./escolherTreino";
+import { linhasDeHistorico, type LinhaHistorico } from "./historico";
 import type {
   CategoriaExercicio,
   Execucao,
@@ -427,4 +428,37 @@ export async function proximoTreino(): Promise<ProximoTreino> {
   }
 
   return escolherTreino(rotinas, sessoes, feitosPorSessao, hoje());
+}
+
+/**
+ * Tudo o que já foi registrado, achatado em linhas de planilha.
+ * A junção mora em historico.ts, coberta por teste; aqui é só busca.
+ */
+export async function historicoCompleto(): Promise<LinhaHistorico[]> {
+  const rotinas = await getRotinas();
+
+  const sessoes = (
+    ((checar(
+      await supabase
+        .from("sessoes")
+        .select("id, rotina_id, data, finalizada")
+        .order("data", { ascending: false }),
+    ) as SessaoRow[] | null) ?? []) as SessaoRow[]
+  ).map(paraSessao);
+
+  if (sessoes.length === 0) return [];
+
+  const execucoes = (
+    ((checar(
+      await supabase
+        .from("execucoes")
+        .select("id, sessao_id, exercicio_id, concluido, carga, reps_feitas")
+        .in(
+          "sessao_id",
+          sessoes.map((s) => s.id!),
+        ),
+    ) as ExecucaoRow[] | null) ?? []) as ExecucaoRow[]
+  ).map(paraExecucao);
+
+  return linhasDeHistorico(rotinas, sessoes, execucoes);
 }

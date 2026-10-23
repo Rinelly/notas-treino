@@ -1,0 +1,151 @@
+/* =========================================================
+   BarraDescanso — flutua no pé da tela do treino
+
+   `sticky` e não `fixed`: assim ela gruda no rodapé enquanto a
+   lista de exercícios rola, mas ocupa lugar no fim da página e
+   nunca tapa o botão de finalizar.
+   ========================================================= */
+
+.barra {
+  position: sticky;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 20;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+
+  overflow: hidden; /* segura a barrinha de progresso nos cantos */
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow);
+}
+
+/* a barrinha que esvazia: fica atrás de tudo, colada embaixo */
+.progresso {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--accent);
+  transition: width 0.2s linear;
+}
+
+.rotulo {
+  color: var(--text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.opcoes {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+}
+
+.opcao {
+  flex: 1;
+  padding: 8px 2px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+}
+
+.escolhida {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.principal {
+  padding: 9px 18px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--accent-strong);
+    border-color: var(--accent-strong);
+  }
+}
+
+.secundario {
+  padding: 9px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+/* ---- rodando ---- */
+
+.relogio {
+  font-size: 30px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.estado {
+  flex: 1;
+  color: var(--text-subtle);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.acoes {
+  display: flex;
+  gap: 6px;
+}
+
+/* acabou: o número puxa o olho mesmo de longe */
+.acabou {
+  border-color: var(--accent);
+
+  .relogio,
+  .estado {
+    color: var(--accent);
+  }
+  .estado {
+    font-weight: 600;
+  }
+}
+
+/* ---- telas estreitas: os tempos ganham uma linha só pra eles ---- */
+@media (max-width: 520px) {
+  .rotulo {
+    display: none;
+  }
+  .opcoes {
+    order: 2;
+    flex-basis: 100%;
+  }
+  .principal {
+    flex: 1;
+  }
+}

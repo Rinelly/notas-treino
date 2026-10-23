@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { apitar, liberarSom } from "../lib/som";
 import { avancarTimer } from "./avancarTimer";
 import type { Config } from "./tipos";
 
@@ -64,54 +65,6 @@ export function useTimer(config: Config, ganchos: Ganchos) {
     setRestanteMs(nova);
   }, [config.focoMin, config.curtaMin, config.longaMin, duracaoMs]);
 
-  /* ---------- áudio ---------- */
-  const ctxRef = useRef<AudioContext | null>(null);
-  const contexto = useCallback(() => {
-    if (!ctxRef.current) {
-      const C =
-        window.AudioContext ??
-        (window as unknown as { webkitAudioContext?: typeof AudioContext })
-          .webkitAudioContext;
-      if (!C) return null;
-      ctxRef.current = new C();
-    }
-    return ctxRef.current;
-  }, []);
-
-  const liberarAudio = useCallback(() => {
-    const c = contexto();
-    if (c && c.state === "suspended") void c.resume().catch(() => {});
-  }, [contexto]);
-
-  const apitar = useCallback(
-    (agudo: boolean) => {
-      if (!configRef.current.som) return;
-      const c = contexto();
-      if (!c) return;
-      try {
-        for (const off of [0, 0.22, 0.44]) {
-          const o = c.createOscillator();
-          const g = c.createGain();
-          o.type = "sine";
-          o.frequency.value = agudo ? 880 : 660;
-          g.gain.setValueAtTime(0.0001, c.currentTime + off);
-          g.gain.exponentialRampToValueAtTime(0.22, c.currentTime + off + 0.02);
-          g.gain.exponentialRampToValueAtTime(
-            0.0001,
-            c.currentTime + off + 0.18,
-          );
-          o.connect(g);
-          g.connect(c.destination);
-          o.start(c.currentTime + off);
-          o.stop(c.currentTime + off + 0.2);
-        }
-      } catch {
-        /* som é enfeite: nunca deve quebrar o timer */
-      }
-    },
-    [contexto],
-  );
-
   /* ---------- um passo ---------- */
   const passo = useCallback(() => {
     if (!rodandoRef.current) return;
@@ -140,7 +93,7 @@ export function useTimer(config: Config, ganchos: Ganchos) {
     rodandoRef.current = false;
     setRodando(false);
 
-    apitar(eraFoco);
+    apitar(eraFoco, configRef.current.som);
     try {
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification("Foco", {
@@ -164,7 +117,7 @@ export function useTimer(config: Config, ganchos: Ganchos) {
     } else {
       definirModo("foco");
     }
-  }, [apitar, definirModo]);
+  }, [definirModo]);
 
   /* ---------- laço principal ---------- */
   useEffect(() => {
@@ -233,8 +186,8 @@ export function useTimer(config: Config, ganchos: Ganchos) {
     ultimoRef.current = Date.now();
     rodandoRef.current = true;
     setRodando(true);
-    liberarAudio();
-  }, [duracaoMs, liberarAudio]);
+    liberarSom();
+  }, [duracaoMs]);
 
   const reiniciar = useCallback(() => {
     rodandoRef.current = false;
@@ -267,6 +220,6 @@ export function useTimer(config: Config, ganchos: Ganchos) {
     reiniciar,
     pular,
     definirModo,
-    liberarAudio,
+    liberarAudio: liberarSom,
   };
 }

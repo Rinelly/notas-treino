@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   chaveData,
   dataDaChave,
+  diasEntre,
   fmtHM,
+  haQuantoTempo,
   fmtRelogio,
   hojeChave,
   ultimosDias,
@@ -78,5 +80,53 @@ describe('ultimosDias', () => {
       const diff = (atual.getTime() - anterior.getTime()) / 86_400_000
       expect(Math.round(diff)).toBe(1)
     }
+  })
+})
+
+describe('diasEntre', () => {
+  it('conta por data de calendário', () => {
+    expect(diasEntre('2026-10-20', '2026-10-23')).toBe(3)
+    expect(diasEntre('2026-10-23', '2026-10-23')).toBe(0)
+  })
+
+  it('atravessa mês e ano', () => {
+    expect(diasEntre('2026-10-31', '2026-11-01')).toBe(1)
+    expect(diasEntre('2026-12-31', '2027-01-01')).toBe(1)
+  })
+
+  it('atravessa a virada do horário de verão sem errar um dia', () => {
+    // compara meio-dia justamente pra hora a mais ou a menos não contar
+    expect(diasEntre('2026-02-14', '2026-02-16')).toBe(2)
+    expect(diasEntre('2026-10-17', '2026-10-19')).toBe(2)
+  })
+
+  it('fica negativo quando a ordem se inverte', () => {
+    expect(diasEntre('2026-10-23', '2026-10-20')).toBe(-3)
+  })
+})
+
+describe('haQuantoTempo', () => {
+  const H = '2026-10-23'
+
+  it('sem data nenhuma, não inventa texto', () => {
+    expect(haQuantoTempo(null, H)).toBeNull()
+  })
+
+  it('os casos do dia a dia', () => {
+    expect(haQuantoTempo('2026-10-23', H)).toBe('hoje')
+    expect(haQuantoTempo('2026-10-22', H)).toBe('ontem')
+    expect(haQuantoTempo('2026-10-20', H)).toBe('há 3 dias')
+    expect(haQuantoTempo('2026-10-17', H)).toBe('há 6 dias')
+    expect(haQuantoTempo('2026-10-16', H)).toBe('há 1 semana')
+    expect(haQuantoTempo('2026-10-09', H)).toBe('há 2 semanas')
+  })
+
+  it('a partir de um mês, fala em meses', () => {
+    expect(haQuantoTempo('2026-09-10', H)).toBe('há 1 mês')
+    expect(haQuantoTempo('2026-07-01', H)).toBe('há 3 meses')
+  })
+
+  it('data no futuro vira "hoje" em vez de texto estranho', () => {
+    expect(haQuantoTempo('2026-10-25', H)).toBe('hoje')
   })
 })

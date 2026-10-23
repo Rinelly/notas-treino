@@ -8,13 +8,23 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getOrCriarSessaoHoje, proximoTreino, type ProximoTreino } from '../db/queries'
-import { getConfig, getDia, getTarefasDeHoje, salvarConfig } from '../foco/queries'
+import {
+  diasTreinadosNoMes,
+  getOrCriarSessaoHoje,
+  proximoTreino,
+  type ProximoTreino,
+} from '../db/queries'
+import { getConfig, getDia, getDias, getTarefasDeHoje, salvarConfig } from '../foco/queries'
+import { calcularEstatisticas } from '../foco/estatisticas'
 import { calcularVencimento, formatarDia } from '../lib/academia'
 import { CONFIG_PADRAO, diaVazio, type Config, type Dia, type Tarefa } from '../foco/tipos'
-import { dataLonga, fmtHM, hojeChave } from '../lib/datas'
+import { dataLonga, fmtHM, haQuantoTempo, hojeChave, ultimosDias } from '../lib/datas'
+import { mesMini, nomeDoMes } from '../lib/mesMini'
 import { useDiaAtual } from '../lib/useDiaAtual'
 import s from './Hoje.module.scss'
+
+/** quantos dias para trás a sequência e a média olham */
+const JANELA = 60
 
 function saudacao() {
   const h = new Date().getHours()
@@ -30,6 +40,8 @@ export default function Hoje() {
   const [dia, setDia] = useState<Dia>(() => diaVazio(hojeChave()))
   const [tarefas, setTarefas] = useState<Tarefa[]>([])
   const [treino, setTreino] = useState<ProximoTreino | null>(null)
+  const [historico, setHistorico] = useState<Dia[]>([])
+  const [treinosDoMes, setTreinosDoMes] = useState<Set<string>>(() => new Set())
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [editandoAcademia, setEditandoAcademia] = useState(false)
@@ -39,16 +51,22 @@ export default function Hoje() {
   const carregar = useCallback(async () => {
     setCarregando(true)
     try {
-      const [c, d, ts, tr] = await Promise.all([
+      const agora = new Date()
+      const janela = ultimosDias(JANELA)
+      const [c, d, ts, tr, hist, mes] = await Promise.all([
         getConfig(),
         getDia(hojeChave()),
         getTarefasDeHoje(),
         proximoTreino(),
+        getDias(janela[0].chave, janela[janela.length - 1].chave),
+        diasTreinadosNoMes(agora.getFullYear(), agora.getMonth()),
       ])
       setConfig(c)
       setDia(d)
       setTarefas(ts)
       setTreino(tr)
+      setHistorico(hist)
+      setTreinosDoMes(mes.comProgresso)
       setErro(null)
     } catch (e) {
       setErro(e instanceof Error ? e.message : String(e))
@@ -111,6 +129,25 @@ export default function Hoje() {
   const pendentes = tarefas.filter((t) => !t.feita)
   const feitasHoje = tarefas.filter((t) => t.feita).length
 
+  /* O cálculo da sequência conta posição por posição, então a série
+     precisa ser contínua: o banco só devolve os dias que existem, e
+     um dia sem foco simplesmente não tem linha. Aqui os buracos são
+     preenchidos com dias vazios — que é exatamente o que quebra a
+     sequência — e hoje vem do estado, que está sempre atualizado. */
+  const porChave = new Map(historico.map((d) => [d.chave, d]))
+  porChave.set(dia.chave, dia)
+  const serie = ultimosDias(JANELA).map(({ chave }) => porChave.get(chave) ?? diaVazio(chave))
+  const stats = calcularEstatisticas(serie, metaSeg)
+
+  const agora = new Date()
+  const { casas, quantos } = mesMini(
+    agora.getFullYear(),
+    agora.getMonth(),
+    treinosDoMes,
+    hojeChave(),
+  )
+  const ultimaVez = haQuantoTempo(treino?.ultimaVez ?? null)
+
   return (
     <div className={s.page}>
       <header className={s.cabecalho}>
@@ -144,6 +181,33 @@ export default function Hoje() {
         </div>
       </button>
 
+      {/* ---------- sequência e semana: dois números pequenos, lado a lado ---------- */}
+      <div className={`${s.grade} ${s.compacta}`}>
+        <button type="button" className={s.card} onClick={() => navigate('/foco')}>
+          <div className={s.rotulo}>Sequência</div>
+          <div className={s.destaque} style={{ fontSize: 22 }}>
+            {stats.sequencia} <small>{stats.sequencia === 1 ? 'dia' : 'dias'}</small>
+          </div>
+          <div className={s.detalhe}>
+            {stats.sequencia === 0
+              ? 'Bata a meta hoje pra começar uma.'
+              : bateu
+                ? 'seguidos batendo a meta'
+                : `seguidos até ontem — faltam ${fmtHM(metaSeg - dia.seg)} hoje`}
+          </div>
+        </button>
+
+        <button type="button" className={s.card} onClick={() => navigate('/foco')}>
+          <div className={s.rotulo}>Esta semana</div>
+          <div className={s.destaque} style={{ fontSize: 22 }}>
+            {fmtHM(stats.semana)}
+          </div>
+          <div className={s.detalhe}>
+            {fmtHM(stats.semanaTrabalho)} trabalho · {fmtHM(stats.semanaEstudo)} estudo
+          </div>
+        </button>
+      </div>
+
       {/* ---------- academia: o treino do dia e a mensalidade são a mesma ida ---------- */}
       <div className={s.grade}>
         <button type="button" className={s.card} onClick={() => void abrirTreino()}>
@@ -162,6 +226,7 @@ export default function Hoje() {
               </div>
               <div className={s.detalhe}>
                 {treino.feitos}/{treino.total} exercícios
+                {ultimaVez && ` · última vez ${ultimaVez}`}
               </div>
               <span
                 className={[
@@ -254,6 +319,36 @@ export default function Hoje() {
         </div>
       </div>
 
+      {/* ---------- miniatura do mês: a frequência numa olhada ---------- */}
+      <button type="button" className={s.card} onClick={() => navigate('/treinos')}>
+        <div className={s.linhaTopo}>
+          <div className={s.rotulo}>Treinos de {nomeDoMes(agora.getMonth())}</div>
+          <div className={s.contagemMes}>
+            {quantos} {quantos === 1 ? 'dia' : 'dias'}
+          </div>
+        </div>
+        <div className={s.mesMini} aria-hidden="true">
+          {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
+            <span key={`t${i}`} className={s.casaTitulo}>
+              {d}
+            </span>
+          ))}
+          {casas.map((c, i) => (
+            <span
+              key={i}
+              className={[
+                c.dia == null ? s.casaVazia : s.casa,
+                c.treinado ? s.casaFeita : '',
+                c.hoje ? s.casaHoje : '',
+                c.futuro ? s.casaFutura : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            />
+          ))}
+        </div>
+      </button>
+
       {/* ---------- tarefas ---------- */}
       <button type="button" className={s.card} onClick={() => navigate('/foco')}>
         <div className={s.rotulo}>
@@ -299,6 +394,10 @@ export default function Hoje() {
 
       <div className={s.versao}>
         versão {__VERSAO__} ·{' '}
+        <button type="button" className={s.linkVersao} onClick={() => navigate('/dados')}>
+          exportar
+        </button>{' '}
+        ·{' '}
         <button type="button" className={s.linkVersao} onClick={() => navigate('/diagnostico')}>
           diagnóstico
         </button>

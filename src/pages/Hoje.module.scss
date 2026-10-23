@@ -59,6 +59,13 @@
   .grade {
     grid-template-columns: 1fr;
   }
+
+  /* estes dois são um número e uma linha de texto: cabem lado a lado
+     mesmo num celular, e empilhá-los só empurraria o resto pra baixo */
+  .grade.compacta {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
 }
 
 .card {
@@ -328,4 +335,57 @@
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
+}
+
+/* ---------- miniatura do mês ----------
+   Sete colunas fixas, uma por dia da semana: a mesma coluna é sempre
+   a mesma semana, e aí dá pra ver "treino toda terça" de relance.
+   Quadradinhos e não números — é um resumo, o calendário cheio está
+   na aba Treinos. */
+.mesMini {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-top: 10px;
+  max-width: 196px;
+}
+
+.casaTitulo {
+  font-size: 9.5px;
+  line-height: 1;
+  text-align: center;
+  color: var(--text-subtle);
+  margin-bottom: 1px;
+}
+
+.casa {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--bg-elevated-2);
+  border: 1px solid transparent;
+}
+
+.casaVazia {
+  aspect-ratio: 1;
+}
+
+.casaFeita {
+  background: var(--accent);
+}
+
+/* dia que ainda não chegou fica mais apagado que um dia vago */
+.casaFutura {
+  background: none;
+  border-color: var(--border);
+}
+
+.casaHoje {
+  outline: 2px solid var(--text-subtle);
+  outline-offset: 1px;
+}
+
+.contagemMes {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }

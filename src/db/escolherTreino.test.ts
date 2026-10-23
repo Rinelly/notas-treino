@@ -111,3 +111,57 @@ describe('escolherTreino', () => {
     expect(letras).toEqual(['A', 'B', 'C', 'A'])
   })
 })
+
+describe('última vez que fiz este treino', () => {
+  it('sem histórico nenhum, não tem última vez', () => {
+    expect(escolherTreino(ROTINAS, [], new Map(), HOJE).ultimaVez).toBeNull()
+  })
+
+  it('devolve a data da vez anterior DESTE treino, não de outro', () => {
+    // rodízio: fez C ontem, então hoje toca o A. O A foi no dia 18.
+    const sessoes = [
+      sessao(9, 3, '2026-10-22', true),
+      sessao(8, 2, '2026-10-20', true),
+      sessao(7, 1, '2026-10-18', true),
+    ]
+    const r = escolherTreino(ROTINAS, sessoes, new Map(), HOJE)
+    expect(r.rotina?.letra).toBe('A')
+    expect(r.ultimaVez).toBe('2026-10-18')
+  })
+
+  it('pega a mais recente quando houve várias', () => {
+    const sessoes = [
+      sessao(9, 1, '2026-10-16', true),
+      sessao(8, 1, '2026-10-09', true),
+      sessao(7, 1, '2026-10-02', true),
+    ]
+    // depois do A vem o B; o B nunca foi feito
+    expect(escolherTreino(ROTINAS, sessoes, new Map(), HOJE).ultimaVez).toBeNull()
+    // olhando só o A, a mais recente é a do dia 16
+    expect(escolherTreino([rotina(1, 'A')], sessoes, new Map(), HOJE).ultimaVez).toBe(
+      '2026-10-16',
+    )
+  })
+
+  it('a sessão de hoje não conta como "última vez"', () => {
+    const sessoes = [sessao(9, 1, HOJE, true), sessao(8, 1, '2026-10-16', true)]
+    const r = escolherTreino([rotina(1, 'A')], sessoes, new Map(), HOJE)
+    expect(r.finalizada).toBe(true)
+    expect(r.ultimaVez).toBe('2026-10-16')
+  })
+
+  it('sessão antiga aberta e vazia não conta: aquele dia não teve treino', () => {
+    const sessoes = [sessao(9, 1, '2026-10-16', false)]
+    const r = escolherTreino([rotina(1, 'A')], sessoes, new Map(), HOJE)
+    expect(r.ultimaVez).toBeNull()
+
+    // com um exercício marcado, aí sim conta
+    const comProgresso = escolherTreino(
+      [rotina(1, 'A')],
+      sessoes,
+      new Map([[9, 1]]),
+      HOJE,
+    )
+    expect(comProgresso.ultimaVez).toBe('2026-10-16')
+  })
+})

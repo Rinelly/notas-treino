@@ -23,6 +23,8 @@ export interface TreinoEscolhido {
   total: number
   finalizada: boolean
   emAndamento: boolean
+  /** AAAA-MM-DD da última vez que ESTE treino foi feito antes de hoje */
+  ultimaVez: string | null
 }
 
 export const SEM_TREINO: TreinoEscolhido = {
@@ -32,6 +34,7 @@ export const SEM_TREINO: TreinoEscolhido = {
   total: 0,
   finalizada: false,
   emAndamento: false,
+  ultimaVez: null,
 }
 
 /**
@@ -57,6 +60,11 @@ export function escolherTreino(
   const temAlgo = (s: SessaoResumo) =>
     s.finalizada || (feitosPorSessao.get(s.id) ?? 0) > 0
 
+  /** a vez mais recente deste mesmo treino ANTES de hoje — sessoes vem em ordem decrescente */
+  const ultimaVezDe = (rotinaId: number) =>
+    sessoes.find((s) => s.rotina_id === rotinaId && s.data < hojeStr && temAlgo(s))?.data ??
+    null
+
   const deHoje = sessoes.find((s) => s.data === hojeStr && temAlgo(s))
   if (deHoje) {
     const rotina = rotinas.find((r) => r.id === deHoje.rotina_id)
@@ -69,6 +77,7 @@ export function escolherTreino(
         total: rotina.exercicios.length,
         finalizada: deHoje.finalizada,
         emAndamento: !deHoje.finalizada && feitos > 0,
+        ultimaVez: ultimaVezDe(rotina.id!),
       }
     }
   }
@@ -94,5 +103,6 @@ export function escolherTreino(
     total: alvo.exercicios.length,
     finalizada: false,
     emAndamento: false,
+    ultimaVez: ultimaVezDe(alvo.id!),
   }
 }

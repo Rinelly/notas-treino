@@ -7,6 +7,7 @@ const abas = [
   { para: '/', rotulo: 'Hoje' },
   { para: '/foco', rotulo: 'Foco' },
   { para: '/treinos', rotulo: 'Treinos' },
+  { para: '/medidas', rotulo: 'Medidas' },
 ]
 
 export default function Nav() {

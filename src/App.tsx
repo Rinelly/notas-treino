@@ -10,6 +10,8 @@ import Foco from './pages/Foco'
 import Treinos from './pages/Home'
 import Sessao from './pages/Sessao'
 import Diagnostico from './pages/Diagnostico'
+import Dados from './pages/Dados'
+import Medidas from './pages/Medidas'
 
 function Miolo() {
   return (
@@ -20,6 +22,8 @@ function Miolo() {
         <Route path="/foco" element={<Foco />} />
         <Route path="/treinos" element={<Treinos />} />
         <Route path="/sessao/:sessaoId" element={<Sessao />} />
+        <Route path="/dados" element={<Dados />} />
+        <Route path="/medidas" element={<Medidas />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Boot>

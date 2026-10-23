@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import BarraDescanso from '../components/BarraDescanso'
 import {
   adicionarExercicio,
   atualizarExercicio,
@@ -298,6 +299,8 @@ export default function Sessao() {
           )
         })}
       </ul>
+
+      {!editando && !sessao.finalizada && <BarraDescanso />}
 
       {!editando && (
         <button
