@@ -12,6 +12,7 @@
    como texto.
    ========================================================= */
 
+import { nomeCurto } from '../lib/nomeTreino'
 import type { CategoriaExercicio, Execucao, Rotina, Sessao } from '../types'
 
 export interface LinhaHistorico {
@@ -56,7 +57,7 @@ export function linhasDeHistorico(
 
     linhas.push({
       data: sessao.data,
-      treino: rotina?.letra ?? '',
+      treino: nomeCurto(rotina?.nome),
       rotina: rotina?.nome ?? '(rotina apagada)',
       // exercício removido da rotina depois: o registro continua valendo,
       // e perder a linha seria perder histórico de carga

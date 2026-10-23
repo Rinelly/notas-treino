@@ -6,6 +6,7 @@ import {
   fmtPreset,
   progresso,
   restante,
+  segundosDoTexto,
 } from './descanso'
 
 const AGORA = 1_700_000_000_000
@@ -131,5 +132,41 @@ describe('+30s', () => {
 
     const esticado = Math.max(alvo, agora) + ACRESCIMO_MS
     expect(progresso(esticado, esticado - inicio, agora)).toBeCloseTo(80 / 120)
+  })
+})
+
+describe('segundosDoTexto — o descanso escrito na rotina', () => {
+  it('minutos viram segundos', () => {
+    expect(segundosDoTexto('2 min')).toBe(120)
+    expect(segundosDoTexto('10 minutos')).toBe(600)
+  })
+
+  it('segundos passam direto', () => {
+    expect(segundosDoTexto('60 s')).toBe(60)
+    expect(segundosDoTexto('90s')).toBe(90)
+  })
+
+  it('faixa usa o menor: melhor zerar cedo e apertar +30s', () => {
+    expect(segundosDoTexto('2–3 min')).toBe(120) // travessão
+    expect(segundosDoTexto('2-3 min')).toBe(120) // hífen
+    expect(segundosDoTexto('60–90 s')).toBe(60)
+    expect(segundosDoTexto('90–120 s')).toBe(90)
+    expect(segundosDoTexto('10–15 minutos')).toBe(600)
+  })
+
+  it('aceita vírgula decimal', () => {
+    expect(segundosDoTexto('1,5 min')).toBe(90)
+  })
+
+  it('sem texto ou sem número, não inventa descanso', () => {
+    expect(segundosDoTexto('')).toBeNull()
+    expect(segundosDoTexto(undefined)).toBeNull()
+    expect(segundosDoTexto(null)).toBeNull()
+    expect(segundosDoTexto('à vontade')).toBeNull()
+    expect(segundosDoTexto('0 s')).toBeNull()
+  })
+
+  it('não deixa um erro de digitação virar uma hora de descanso', () => {
+    expect(segundosDoTexto('999 min')).toBe(3600)
   })
 })

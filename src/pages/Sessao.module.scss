@@ -9,6 +9,13 @@
   flex: 1;
 }
 
+@media (max-width: 700px) {
+  .page {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
 .topo {
   display: flex;
   align-items: center;
@@ -21,18 +28,42 @@
   font-size: 14px;
 }
 
-.editarBtn {
+/* ---------- nome do treino ----------
+   Campos sem moldura: parecem texto até o dedo chegar perto. É o
+   que deixa "tudo editável" sem a tela virar um formulário. */
+
+.tituloCampo,
+.subtituloCampo {
+  width: 100%;
   background: none;
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  font-size: 13px;
-  padding: 6px 12px;
+  color: inherit;
+  font: inherit;
+  padding: 2px 6px;
+  margin-left: -6px;
 
   &:hover {
-    color: var(--text);
-    border-color: var(--border-strong);
+    border-color: var(--border);
   }
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg-elevated);
+  }
+}
+
+.tituloCampo {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: -14px;
+}
+
+.subtituloCampo {
+  color: var(--text-muted);
+  font-size: 13.5px;
 }
 
 .progresso {
@@ -40,6 +71,8 @@
   font-size: 14px;
   margin-top: -8px;
 }
+
+/* ---------- lista ---------- */
 
 .lista {
   list-style: none;
@@ -63,13 +96,16 @@
 }
 
 .item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 14px;
+  padding: 10px 12px;
+
+  /* o toque longo é nosso; sem isto o iOS abre o menu de seleção
+     de texto no meio do arrasto */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .concluido {
@@ -80,6 +116,30 @@
     text-decoration: line-through;
     color: var(--text-muted);
   }
+}
+
+.itemAberto {
+  border-color: var(--border-strong);
+
+  /* dentro do painel o texto volta a ser selecionável */
+  .painel {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* enquanto está na mão: sai do lugar, ganha sombra e fica leve */
+.itemArrastando {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+  opacity: 0.92;
+  transform: scale(1.015);
+}
+
+.linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .check {
@@ -103,120 +163,205 @@
   background: var(--accent);
 }
 
-.info {
+.resumo {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: flex-start;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  color: inherit;
+  font: inherit;
 }
 
 .nome {
   font-weight: 600;
+  line-height: 1.3;
 }
 
 .meta {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12.5px;
+  line-height: 1.35;
 }
 
-.marcas {
+.cargaSelo {
   flex-shrink: 0;
-  display: flex;
-  gap: 6px;
+  background: var(--bg-elevated-2);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  padding: 3px 9px;
+  white-space: nowrap;
 }
 
-.repsInput,
-.cargaInput {
-  width: 56px;
-  padding: 8px 6px;
+.seta {
+  flex-shrink: 0;
+  color: var(--text-subtle);
+  font-size: 13px;
+  width: 14px;
   text-align: center;
 }
 
-// Modo de edição
+/* ---------- painel aberto ---------- */
 
-.editRow {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-}
-
-.editFields {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.editNome {
-  font-weight: 600;
-}
-
-.editLinha {
-  display: flex;
-  gap: 6px;
-
-  input {
-    flex: 1;
-    min-width: 0;
-    font-size: 13px;
-  }
-}
-
-.remover {
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: none;
-  color: var(--danger);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  font-size: 13px;
-
-  &:hover {
-    background: var(--danger-bg);
-    border-color: var(--danger);
-  }
-}
-
-.addForm {
+.painel {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--bg-elevated);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius);
-  padding: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
 }
 
-.addLinha {
+.painelTopo {
   display: flex;
+  align-items: flex-end;
   gap: 8px;
 }
 
-.addCategoria {
-  flex-shrink: 0;
-  width: 110px;
-}
-
-.addNome,
-.addSeries {
+.play {
   flex: 1;
-  min-width: 0;
-}
-
-.addBtn {
-  flex-shrink: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
   background: var(--accent);
   color: var(--accent-ink);
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 0 14px;
+  font-size: 13.5px;
   font-weight: 600;
-  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &:hover {
+    background: var(--accent-strong);
+    border-color: var(--accent-strong);
+  }
 }
+
+.campo,
+.campoCarga {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+
+  span {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+  }
+
+  input,
+  select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    padding: 8px 10px;
+
+    &:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+  }
+}
+
+.campoCarga {
+  flex: 0 0 92px;
+
+  input {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.campoLinha {
+  display: flex;
+  gap: 8px;
+}
+
+.painelRodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.dicaArrasto {
+  color: var(--text-subtle);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.apagar,
+.cancelar {
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  color: var(--text-subtle);
+  font-size: 12.5px;
+  text-decoration: underline;
+
+  &:hover {
+    color: var(--danger);
+  }
+}
+
+.cancelar:hover {
+  color: var(--text);
+}
+
+.confirmar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.apagarMesmo {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger);
+  border-radius: 999px;
+  color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 12px;
+}
+
+/* ---------- adicionar ---------- */
+
+.linhaAdicionar {
+  display: flex;
+}
+
+.adicionar {
+  width: 100%;
+  background: none;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 10px;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+/* ---------- rodapé ---------- */
 
 .finalizarBtn {
   background: var(--accent);
@@ -247,22 +392,5 @@
 
   b {
     color: var(--danger);
-  }
-}
-
-/* "Treino A" acima do nome da rotina */
-.letraTreino {
-  font-size: 11px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  font-weight: 600;
-  color: var(--accent);
-  margin-bottom: 2px;
-}
-
-@media (max-width: 700px) {
-  .page {
-    padding-left: 14px;
-    padding-right: 14px;
   }
 }

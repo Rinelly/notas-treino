@@ -12,6 +12,7 @@ import {
 import type { Rotina, Sessao } from '../types'
 import FrequencyCalendar from '../components/FrequencyCalendar'
 import styles from './Home.module.scss'
+import { partesDoNome } from '../lib/nomeTreino'
 
 function dataAmigavel(data: string) {
   if (data === hoje()) return 'Hoje'
@@ -125,7 +126,7 @@ export default function Home() {
                     className={styles.opcaoDia}
                     onClick={() => navigate(`/sessao/${sessao.id}`)}
                   >
-                    Treino {rotina.letra} · {rotina.nome}
+                    {partesDoNome(rotina.nome).curto}
                     {sessao.finalizada && <span className={styles.seloFeito}>✓</span>}
                   </button>
                 </li>
@@ -150,7 +151,7 @@ export default function Home() {
                     disabled={ocupado}
                     onClick={() => void registrarNoDia(rotina.id!)}
                   >
-                    Treino {rotina.letra} · {rotina.nome}
+                    {partesDoNome(rotina.nome).curto}
                   </button>
                 </li>
               ))}
@@ -169,10 +170,10 @@ export default function Home() {
               className={rotina.id === proximaId ? `${styles.item} ${styles.hoje}` : styles.item}
             >
               <div className={styles.itemDia}>
-                Treino {rotina.letra}
+                {partesDoNome(rotina.nome).curto}
                 {rotina.id === proximaId && <span className={styles.selo}>atual</span>}
               </div>
-              <div className={styles.itemNome}>{rotina.nome}</div>
+              <div className={styles.itemNome}>{partesDoNome(rotina.nome).detalhe}</div>
             </button>
           </li>
         ))}

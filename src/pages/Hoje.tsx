@@ -20,6 +20,7 @@ import { calcularVencimento, formatarDia } from '../lib/academia'
 import { CONFIG_PADRAO, diaVazio, type Config, type Dia, type Tarefa } from '../foco/tipos'
 import { dataLonga, fmtHM, haQuantoTempo, hojeChave, ultimosDias } from '../lib/datas'
 import { mesMini, nomeDoMes } from '../lib/mesMini'
+import { partesDoNome } from '../lib/nomeTreino'
 import { useDiaAtual } from '../lib/useDiaAtual'
 import s from './Hoje.module.scss'
 
@@ -215,9 +216,9 @@ export default function Hoje() {
           {treino?.rotina ? (
             <>
               <div className={s.destaque} style={{ fontSize: 17, lineHeight: 1.3 }}>
-                Treino {treino.rotina.letra}
+                {partesDoNome(treino.rotina.nome).curto}
               </div>
-              <div className={s.detalhe}>{treino.rotina.nome}</div>
+              <div className={s.detalhe}>{partesDoNome(treino.rotina.nome).detalhe}</div>
               <div className={s.barra}>
                 <div
                   className={`${s.fatia} ${s.feito}`}

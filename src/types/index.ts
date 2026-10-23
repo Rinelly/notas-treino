@@ -5,6 +5,8 @@ export interface ExercicioRotina {
   nome: string
   categoria: CategoriaExercicio
   seriesAlvo: string 
+  /** como está escrito na rotina: "2–3 min", "60–90 s" */
+  descanso?: string
   observacao?: string 
 }
 

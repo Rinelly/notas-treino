@@ -1,5 +1,5 @@
 import { fmtDescanso, fmtPreset, PRESETS } from '../foco/descanso'
-import { useDescanso } from '../foco/useDescanso'
+import type { useDescanso } from '../foco/useDescanso'
 import s from './BarraDescanso.module.scss'
 
 /* =========================================================
@@ -10,10 +10,13 @@ import s from './BarraDescanso.module.scss'
 
    Não segura a tela acesa de propósito — o contrário do pomodoro.
    Aqui o celular vai pro bolso, e quem avisa é o som e a vibração.
+
+   O cronômetro vem de fora (a tela do treino é dona dele) porque
+   tocar no descanso de um exercício precisa começar ESTA barra, e
+   não um segundo cronômetro escondido.
    ========================================================= */
 
-export default function BarraDescanso() {
-  const d = useDescanso()
+export default function BarraDescanso({ d }: { d: ReturnType<typeof useDescanso> }) {
 
   if (!d.rodando) {
     return (

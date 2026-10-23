@@ -6,7 +6,7 @@ const ROTINA: Rotina = {
   id: 1,
   letra: 'A',
   diaSemana: 'Segunda',
-  nome: 'Inferiores A',
+  nome: 'Inferiores A — quadríceps e glúteos',
   exercicios: [
     { id: 'e0', nome: 'Esteira', categoria: 'aquecimento', seriesAlvo: '8 min' },
     { id: 'e1', nome: 'Agachamento', categoria: 'treino', seriesAlvo: '4x10' },
@@ -36,8 +36,8 @@ describe('linhasDeHistorico', () => {
     expect(linhas).toHaveLength(1)
     expect(linhas[0]).toMatchObject({
       data: '2026-10-20',
-      treino: 'A',
-      rotina: 'Inferiores A',
+      treino: 'Inferiores A',
+      rotina: 'Inferiores A — quadríceps e glúteos',
       exercicio: 'Agachamento',
       categoria: 'treino',
       seriesAlvo: '4x10',
@@ -113,5 +113,19 @@ describe('linhasDeHistorico', () => {
   it('sem nada registrado, sai lista vazia e não quebra', () => {
     expect(linhasDeHistorico([ROTINA], SESSOES, [])).toEqual([])
     expect(linhasDeHistorico([], [], [])).toEqual([])
+  })
+})
+
+describe('a coluna "Treino" do CSV', () => {
+  it('é o apelido da rotina, não a letra automática', () => {
+    // "Treino C" dizia menos do que "Inferiores B" na planilha
+    const [l] = linhasDeHistorico([ROTINA], SESSOES, [exec(1, 10, 'e1')])
+    expect(l.treino).toBe('Inferiores A')
+  })
+
+  it('rotina apagada não inventa apelido', () => {
+    const [l] = linhasDeHistorico([], SESSOES, [exec(1, 10, 'e1')])
+    expect(l.treino).toBe('')
+    expect(l.rotina).toBe('(rotina apagada)')
   })
 })

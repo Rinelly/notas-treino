@@ -54,3 +54,29 @@ export function progresso(
   const falta = restante(alvo, agora)
   return Math.min(1, Math.max(0, 1 - falta / duracaoMs))
 }
+
+/**
+ * Lê o descanso escrito na rotina ("2–3 min", "60–90 s") e devolve
+ * segundos para o cronômetro.
+ *
+ * Quando vem uma faixa, usa o MENOR número: é melhor a barra zerar
+ * cedo e você apertar "+30s" do que ela te segurar parada achando
+ * que ainda falta. O texto original continua na tela, inteiro.
+ */
+export function segundosDoTexto(texto: string | undefined | null): number | null {
+  if (!texto) return null
+
+  // 2–3 min / 2-3 min / 60 a 90 s — o primeiro número é o que vale
+  const numero = texto.match(/\d+(?:[.,]\d+)?/)
+  if (!numero) return null
+
+  const valor = Number(numero[0].replace(',', '.'))
+  if (!Number.isFinite(valor) || valor <= 0) return null
+
+  // "min" tem que ser testado antes de "m", e "s" só vale se não
+  // for o "s" de "minutos"
+  const emMinutos = /\bm(in|inuto)?/i.test(texto)
+  const segundos = emMinutos ? valor * 60 : valor
+
+  return Math.round(Math.min(segundos, 60 * 60))
+}

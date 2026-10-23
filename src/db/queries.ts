@@ -10,6 +10,7 @@ import {
   type TreinoEscolhido,
 } from "./escolherTreino";
 import { linhasDeHistorico, type LinhaHistorico } from "./historico";
+import { inserirExercicio } from "./exercicios";
 import type {
   CategoriaExercicio,
   Execucao,
@@ -346,7 +347,13 @@ export async function diasTreinadosNoMes(ano: number, mesIndice0: number) {
 export async function atualizarExercicio(
   rotinaId: number,
   exercicioId: string,
-  dados: Partial<{ nome: string; seriesAlvo: string; observacao: string }>,
+  dados: Partial<{
+    nome: string;
+    seriesAlvo: string;
+    descanso: string;
+    observacao: string;
+    categoria: CategoriaExercicio;
+  }>,
 ) {
   const rotina = await getRotina(rotinaId);
   if (!rotina) return;
@@ -367,13 +374,35 @@ export async function adicionarExercicio(
   if (!rotina) return;
 
   const novoExercicio: ExercicioRotina = { id: crypto.randomUUID(), ...dados };
+  // entra no fim do bloco da categoria dele, não no fim da lista
   checar(
     await supabase
       .from("rotinas")
-      .update({ exercicios: [...rotina.exercicios, novoExercicio] })
+      .update({ exercicios: inserirExercicio(rotina.exercicios, novoExercicio) })
       .eq("id", rotinaId),
   );
   return novoExercicio;
+}
+
+/**
+ * Grava a lista inteira na ordem em que ela está na tela.
+ *
+ * Manda a lista pronta em vez de "mova o item X para a posição N":
+ * a tela já reordenou enquanto o dedo arrastava, e recalcular aqui
+ * daria chance de os dois discordarem.
+ */
+export async function salvarOrdemExercicios(
+  rotinaId: number,
+  exercicios: ExercicioRotina[],
+) {
+  checar(
+    await supabase.from("rotinas").update({ exercicios }).eq("id", rotinaId),
+  );
+}
+
+/** o nome completo da rotina: "Inferiores A — quadríceps e glúteos" */
+export async function renomearRotina(rotinaId: number, nome: string) {
+  checar(await supabase.from("rotinas").update({ nome }).eq("id", rotinaId));
 }
 
 export async function removerExercicio(rotinaId: number, exercicioId: string) {
