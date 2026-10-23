@@ -200,6 +200,26 @@
   white-space: nowrap;
 }
 
+/* a contagem na linha fechada, quando o descanso daquele
+   exercício está rolando */
+.contagemSelo {
+  flex-shrink: 0;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.contagemAcabou {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
 .seta {
   flex-shrink: 0;
   color: var(--text-subtle);

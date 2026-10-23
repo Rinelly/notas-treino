@@ -16,7 +16,14 @@ import s from './BarraDescanso.module.scss'
    não um segundo cronômetro escondido.
    ========================================================= */
 
-export default function BarraDescanso({ d }: { d: ReturnType<typeof useDescanso> }) {
+export default function BarraDescanso({
+  d,
+  aoComecar,
+}: {
+  d: ReturnType<typeof useDescanso>
+  /** avisa quem começou: um descanso iniciado aqui não é de exercício nenhum */
+  aoComecar?: () => void
+}) {
 
   if (!d.rodando) {
     return (
@@ -29,6 +36,7 @@ export default function BarraDescanso({ d }: { d: ReturnType<typeof useDescanso>
               type="button"
               className={segs === d.segundos ? `${s.opcao} ${s.escolhida}` : s.opcao}
               onClick={() => {
+                aoComecar?.()
                 d.setSegundos(segs)
                 d.comecar(segs)
               }}
@@ -37,7 +45,14 @@ export default function BarraDescanso({ d }: { d: ReturnType<typeof useDescanso>
             </button>
           ))}
         </div>
-        <button type="button" className={s.principal} onClick={() => d.comecar()}>
+        <button
+          type="button"
+          className={s.principal}
+          onClick={() => {
+            aoComecar?.()
+            d.comecar()
+          }}
+        >
           Descansar
         </button>
       </div>

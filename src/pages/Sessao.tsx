@@ -14,8 +14,8 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import BarraDescanso from '../components/BarraDescanso'
-import { segundosDoTexto } from '../foco/descanso'
+import DescansoNoCard from '../components/DescansoNoCard'
+import { fmtDescanso, segundosDoTexto } from '../foco/descanso'
 import { useDescanso } from '../foco/useDescanso'
 import { vibrar } from '../lib/som'
 import { indiceAlvo, saiuDoLugar, type Faixa } from '../lib/arrastar'
@@ -73,6 +73,9 @@ export default function Sessao() {
   const [confirmandoApagar, setConfirmandoApagar] = useState<string | null>(null)
   const [erroGravacao, setErroGravacao] = useState<string | null>(null)
   const [arrastando, setArrastando] = useState<string | null>(null)
+  /* de qual exercício partiu o descanso: é ele que mostra o
+     cronômetro no lugar do play enquanto estiver aberto */
+  const [donoDescanso, setDonoDescanso] = useState<string | null>(null)
 
   const descanso = useDescanso()
 
@@ -495,6 +498,19 @@ export default function Sessao() {
                     </span>
                   </button>
 
+                  {/* fechou o exercício no meio do descanso: a contagem
+                      vem pra linha, pra não sumir da vista */}
+                  {descanso.rodando && donoDescanso === ex.id && !estaAberto && (
+                    <span
+                      className={
+                        descanso.terminou
+                          ? `${styles.contagemSelo} ${styles.contagemAcabou}`
+                          : styles.contagemSelo
+                      }
+                    >
+                      {descanso.terminou ? 'Bora!' : fmtDescanso(descanso.falta)}
+                    </span>
+                  )}
                   {execucao?.carga != null && (
                     <span className={styles.cargaSelo}>{execucao.carga} kg</span>
                   )}
@@ -506,13 +522,20 @@ export default function Sessao() {
                 {estaAberto && (
                   <div className={styles.painel} data-nao-arrasta="">
                     <div className={styles.painelTopo}>
-                      <button
-                        type="button"
-                        className={styles.play}
-                        onClick={() => descanso.comecar(segundos ?? undefined)}
-                      >
-                        ▶ Descansar{ex.descanso ? ` ${ex.descanso}` : ''}
-                      </button>
+                      {descanso.rodando && donoDescanso === ex.id ? (
+                        <DescansoNoCard d={descanso} aoParar={() => setDonoDescanso(null)} />
+                      ) : (
+                        <button
+                          type="button"
+                          className={styles.play}
+                          onClick={() => {
+                            setDonoDescanso(ex.id)
+                            descanso.comecar(segundos ?? undefined)
+                          }}
+                        >
+                          ▶ Descansar{ex.descanso ? ` ${ex.descanso}` : ''}
+                        </button>
+                      )}
 
                       {ex.categoria === 'treino' && (
                         <label className={styles.campoCarga}>
@@ -649,8 +672,6 @@ export default function Sessao() {
           </li>
         )}
       </ul>
-
-      {!sessao.finalizada && <BarraDescanso d={descanso} />}
 
       <button
         type="button"

@@ -1,0 +1,88 @@
+/* o cronômetro ocupa exatamente o lugar do botão de play, pra
+   abrir o exercício e apertar play não mexer a tela de lugar */
+.caixa {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  overflow: hidden;
+  padding: 7px 10px 7px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent-bg);
+}
+
+.progresso {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--accent);
+  transition: width 0.2s linear;
+}
+
+.relogio {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.estado {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mais,
+.parar {
+  flex-shrink: 0;
+  border-radius: 999px;
+  font-size: 12.5px;
+  padding: 6px 11px;
+  white-space: nowrap;
+}
+
+.mais {
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+.parar {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+
+  &:hover {
+    background: var(--accent-strong);
+    border-color: var(--accent-strong);
+  }
+}
+
+.acabou .estado {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* num celular estreito, "descansando" cede o lugar aos botões */
+@media (max-width: 420px) {
+  .estado {
+    display: none;
+  }
+}
