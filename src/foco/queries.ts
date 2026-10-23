@@ -111,22 +111,38 @@ export async function getDias(de: string, ate: string): Promise<Dia[]> {
   return rows.map(paraDia);
 }
 
-export async function salvarDia(d: Dia) {
-  checar(
-    await supabase.from("days").upsert(
-      {
-        user_id: await uid(),
-        date: d.chave,
-        seconds: d.seg,
-        seconds_work: d.segTrabalho,
-        seconds_study: d.segEstudo,
-        pomodoros: d.pomodoros,
-        note: d.nota,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,date" },
-    ),
-  );
+/**
+ * Soma no dia em vez de sobrescrever.
+ *
+ * A gravação antiga mandava o TOTAL (`seconds = 7200`), e aí dois
+ * aparelhos no mesmo dia se apagavam: o último a salvar vencia.
+ * Agora vai só o pedaço acumulado e quem soma é o Postgres, na
+ * função `registrar_dia` (supabase/migracao-somar-dia.sql).
+ *
+ * `nota` só é enviada quando muda: texto não se soma, e mandar
+ * junto com tempo faria uma aba antiga apagar o que a outra
+ * escreveu.
+ *
+ * Devolve o dia já somado, como está no servidor.
+ */
+export async function somarNoDia(
+  chave: string,
+  pedaco: { seg: number; segTrabalho: number; segEstudo: number; pomodoros: number },
+  nota?: string,
+): Promise<Dia> {
+  const { data, error } = await supabase
+    .rpc("registrar_dia", {
+      p_data: chave,
+      p_seg: Math.round(pedaco.seg),
+      p_seg_trab: Math.round(pedaco.segTrabalho),
+      p_seg_est: Math.round(pedaco.segEstudo),
+      p_pom: Math.round(pedaco.pomodoros),
+      p_nota: nota ?? null,
+    })
+    .single();
+
+  if (error) throw new Error(error.message);
+  return paraDia(data as DiaRow);
 }
 
 type TarefaRow = {

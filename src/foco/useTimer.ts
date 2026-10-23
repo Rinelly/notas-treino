@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { avancarTimer } from "./avancarTimer";
 import type { Config } from "./tipos";
 
 export type Modo = "foco" | "curta" | "longa";
@@ -111,70 +112,114 @@ export function useTimer(config: Config, ganchos: Ganchos) {
     [contexto],
   );
 
+  /* ---------- um passo ---------- */
+  const passo = useCallback(() => {
+    if (!rodandoRef.current) return;
+
+    const agora = Date.now();
+    const dt = agora - ultimoRef.current;
+    ultimoRef.current = agora;
+
+    const r = avancarTimer({
+      restanteMs: restanteRef.current,
+      sobraMs: sobraRef.current,
+      dtMs: dt,
+      ehFoco: modoRef.current === "foco",
+    });
+
+    restanteRef.current = r.restanteMs;
+    sobraRef.current = r.sobraMs;
+    if (r.segundosDeFoco > 0) ganchosRef.current.aoAcumular(r.segundosDeFoco);
+
+    if (!r.concluiu) {
+      setRestanteMs(r.restanteMs);
+      return;
+    }
+
+    const eraFoco = modoRef.current === "foco";
+    rodandoRef.current = false;
+    setRodando(false);
+
+    apitar(eraFoco);
+    try {
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Foco", {
+          body: eraFoco
+            ? "Pomodoro concluído — hora da pausa"
+            : "Pausa terminada — bora voltar",
+        });
+      }
+    } catch {
+      /* notificação é opcional */
+    }
+
+    ganchosRef.current.aoConcluir(eraFoco);
+
+    if (eraFoco) {
+      const proximo = cicloRef.current + 1;
+      const vaiPraLonga = proximo >= configRef.current.longaCada;
+      cicloRef.current = vaiPraLonga ? 0 : proximo;
+      setCiclo(cicloRef.current);
+      definirModo(vaiPraLonga ? "longa" : "curta");
+    } else {
+      definirModo("foco");
+    }
+  }, [apitar, definirModo]);
+
   /* ---------- laço principal ---------- */
   useEffect(() => {
-    const id = setInterval(() => {
-      if (!rodandoRef.current) return;
-
-      const agora = Date.now();
-      let dt = agora - ultimoRef.current;
-      ultimoRef.current = agora;
-
-      if (dt < 0) dt = 0;
-      if (dt > 60_000) dt = 60_000;
-
-      restanteRef.current -= dt;
-
-      if (modoRef.current === "foco") {
-        sobraRef.current += dt;
-        if (sobraRef.current >= 1000) {
-          const segs = Math.floor(sobraRef.current / 1000);
-          sobraRef.current -= segs * 1000;
-          ganchosRef.current.aoAcumular(segs);
-        }
-      }
-
-      if (restanteRef.current <= 0) {
-        const eraFoco = modoRef.current === "foco";
-        rodandoRef.current = false;
-        restanteRef.current = 0;
-        setRodando(false);
-
-        apitar(eraFoco);
-        try {
-          if (
-            "Notification" in window &&
-            Notification.permission === "granted"
-          ) {
-            new Notification("Foco", {
-              body: eraFoco
-                ? "Pomodoro concluído — hora da pausa"
-                : "Pausa terminada — bora voltar",
-            });
-          }
-        } catch {
-          /* notificação é opcional */
-        }
-
-        ganchosRef.current.aoConcluir(eraFoco);
-
-        if (eraFoco) {
-          const proximo = cicloRef.current + 1;
-          const vaiPraLonga = proximo >= configRef.current.longaCada;
-          cicloRef.current = vaiPraLonga ? 0 : proximo;
-          setCiclo(cicloRef.current);
-          definirModo(vaiPraLonga ? "longa" : "curta");
-        } else {
-          definirModo("foco");
-        }
-        return;
-      }
-
-      setRestanteMs(restanteRef.current);
-    }, 250);
-
+    const id = setInterval(passo, 250);
     return () => clearInterval(id);
-  }, [apitar, definirModo]);
+  }, [passo]);
+
+  /* ---------- tela acesa e volta do segundo plano ----------
+
+     Dois problemas diferentes:
+
+     1. a tela apagar. O Wake Lock segura a tela acesa enquanto o
+        cronômetro roda — é o que evita o problema em vez de
+        remediar. O sistema devolve o lock sozinho quando a aba
+        sai de vista, por isso ele é pedido de novo na volta.
+     2. ter apagado assim mesmo (ou o navegador não ter Wake Lock).
+        Aí o passo na volta acerta a conta de uma vez, porque
+        avancarTimer trabalha com tempo real.                     */
+  const lockRef = useRef<WakeLockSentinel | null>(null);
+
+  const segurarTela = useCallback(async () => {
+    if (!rodandoRef.current) return;
+    if (lockRef.current) return;
+    try {
+      lockRef.current = await navigator.wakeLock?.request("screen");
+      lockRef.current?.addEventListener("release", () => {
+        lockRef.current = null;
+      });
+    } catch {
+      /* navegador sem Wake Lock, ou recusado: o passo da volta resolve */
+    }
+  }, []);
+
+  const soltarTela = useCallback(() => {
+    void lockRef.current?.release().catch(() => {});
+    lockRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (rodando) void segurarTela();
+    else soltarTela();
+  }, [rodando, segurarTela, soltarTela]);
+
+  useEffect(() => {
+    const aoVoltar = () => {
+      if (document.visibilityState !== "visible") return;
+      passo();
+      void segurarTela();
+    };
+    document.addEventListener("visibilitychange", aoVoltar);
+    return () => {
+      document.removeEventListener("visibilitychange", aoVoltar);
+      soltarTela();
+    };
+  }, [passo, segurarTela, soltarTela]);
 
   /* ---------- ações ---------- */
   const alternar = useCallback(() => {

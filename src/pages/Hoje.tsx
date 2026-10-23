@@ -6,13 +6,14 @@
    tudo na mesma olhada.
    ========================================================= */
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getOrCriarSessaoHoje, proximoTreino, type ProximoTreino } from '../db/queries'
 import { getConfig, getDia, getTarefasDeHoje, salvarConfig } from '../foco/queries'
 import { calcularVencimento, formatarDia } from '../lib/academia'
 import { CONFIG_PADRAO, diaVazio, type Config, type Dia, type Tarefa } from '../foco/tipos'
 import { dataLonga, fmtHM, hojeChave } from '../lib/datas'
+import { useDiaAtual } from '../lib/useDiaAtual'
 import s from './Hoje.module.scss'
 
 function saudacao() {
@@ -35,31 +36,33 @@ export default function Hoje() {
   const [diaDigitado, setDiaDigitado] = useState('')
   const [erroAcademia, setErroAcademia] = useState<string | null>(null)
 
-  useEffect(() => {
-    let vivo = true
-    ;(async () => {
-      try {
-        const [c, d, ts, tr] = await Promise.all([
-          getConfig(),
-          getDia(hojeChave()),
-          getTarefasDeHoje(),
-          proximoTreino(),
-        ])
-        if (!vivo) return
-        setConfig(c)
-        setDia(d)
-        setTarefas(ts)
-        setTreino(tr)
-      } catch (e) {
-        if (vivo) setErro(e instanceof Error ? e.message : String(e))
-      } finally {
-        if (vivo) setCarregando(false)
-      }
-    })()
-    return () => {
-      vivo = false
+  const carregar = useCallback(async () => {
+    setCarregando(true)
+    try {
+      const [c, d, ts, tr] = await Promise.all([
+        getConfig(),
+        getDia(hojeChave()),
+        getTarefasDeHoje(),
+        proximoTreino(),
+      ])
+      setConfig(c)
+      setDia(d)
+      setTarefas(ts)
+      setTreino(tr)
+      setErro(null)
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e))
+    } finally {
+      setCarregando(false)
     }
   }, [])
+
+  useEffect(() => {
+    void carregar()
+  }, [carregar])
+
+  // o painel inteiro é "hoje": na virada ele tem que renascer
+  useDiaAtual(carregar)
 
   async function salvarAcademia(e: React.FormEvent) {
     e.preventDefault()

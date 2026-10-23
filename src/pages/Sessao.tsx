@@ -8,9 +8,10 @@ import {
   getRotina,
   getSessao,
   removerExercicio,
-  ultimaExecucao,
+  marcasDaRotina,
   upsertExecucao,
 } from '../db/queries'
+import type { Marca } from '../db/ultimasMarcas'
 import type { CategoriaExercicio, Execucao, ExercicioRotina, Rotina, Sessao as SessaoType } from '../types'
 import styles from './Sessao.module.scss'
 
@@ -20,11 +21,6 @@ const rotuloCategoria: Record<CategoriaExercicio, string> = {
   cardio: 'Cardio',
 }
 
-interface UltimaMarca {
-  carga?: number
-  repsFeitas?: number
-}
-
 export default function Sessao() {
   const { sessaoId } = useParams()
   const id = Number(sessaoId)
@@ -32,7 +28,7 @@ export default function Sessao() {
   const [sessao, setSessao] = useState<SessaoType | null>(null)
   const [rotina, setRotina] = useState<Rotina | null>(null)
   const [execucoes, setExecucoes] = useState<Map<string, Execucao>>(new Map())
-  const [ultimasMarcas, setUltimasMarcas] = useState<Map<string, UltimaMarca>>(new Map())
+  const [ultimasMarcas, setUltimasMarcas] = useState<Map<string, Marca>>(new Map())
   const [editando, setEditando] = useState(false)
   const [erroGravacao, setErroGravacao] = useState<string | null>(null)
 
@@ -56,15 +52,7 @@ export default function Sessao() {
     const execs = await execucoesDaSessao(id)
     setExecucoes(new Map(execs.map((e) => [e.exercicioId, e])))
 
-    const marcas = new Map<string, UltimaMarca>()
-    await Promise.all(
-      r.exercicios.map(async (ex) => {
-        if (ex.categoria !== 'treino') return
-        const ultima = await ultimaExecucao(s.rotinaId, ex.id, s.id)
-        if (ultima) marcas.set(ex.id, { carga: ultima.carga, repsFeitas: ultima.repsFeitas })
-      }),
-    )
-    setUltimasMarcas(marcas)
+    setUltimasMarcas(await marcasDaRotina(s.rotinaId, s.id))
   }
 
   function avisarErro(e: unknown) {

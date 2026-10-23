@@ -1,4 +1,14 @@
 import { supabase, uid } from "../lib/supabase";
+import {
+  ultimasMarcas,
+  type LinhaComSessao,
+  type Marca,
+} from "./ultimasMarcas";
+import {
+  escolherTreino,
+  SEM_TREINO,
+  type TreinoEscolhido,
+} from "./escolherTreino";
 import type {
   CategoriaExercicio,
   Execucao,
@@ -222,36 +232,27 @@ export async function upsertExecucao(
   }
 }
 
-export async function ultimaExecucao(
+/**
+ * A carga/reps da última vez, de TODOS os exercícios da rotina,
+ * numa consulta só.
+ *
+ * Antes isso era uma consulta por exercício dentro de um
+ * Promise.all — oito exercícios, oito idas ao servidor, bem na
+ * hora em que a conexão é pior (academia).
+ */
+export async function marcasDaRotina(
   rotinaId: number,
-  exercicioId: string,
   sessaoAtualId?: number,
-): Promise<Execucao | null> {
-  type ComSessao = ExecucaoRow & {
-    sessoes: { data: string; rotina_id: number } | null;
-  };
-
+): Promise<Map<string, Marca>> {
   const rows = checar(
     await supabase
       .from("execucoes")
-      .select(
-        "id, sessao_id, exercicio_id, concluido, carga, reps_feitas, sessoes!inner(data, rotina_id)",
-      )
-      .eq("exercicio_id", exercicioId)
+      .select("sessao_id, exercicio_id, carga, reps_feitas, sessoes!inner(data, rotina_id)")
       .eq("sessoes.rotina_id", rotinaId)
       .or("carga.not.is.null,reps_feitas.not.is.null"),
-  ) as unknown as ComSessao[] | null;
+  ) as unknown as LinhaComSessao[] | null;
 
-  const candidatas = (rows ?? []).filter(
-    (r) => r.sessao_id !== sessaoAtualId && r.sessoes,
-  );
-  if (candidatas.length === 0) return null;
-
-  // mais recente primeiro, pela data da sessão
-  candidatas.sort((a, b) =>
-    (b.sessoes!.data ?? "").localeCompare(a.sessoes!.data ?? ""),
-  );
-  return paraExecucao(candidatas[0]);
+  return ultimasMarcas(rows ?? [], sessaoAtualId);
 }
 
 export async function ultimaSessaoComProgresso() {
@@ -384,27 +385,15 @@ export async function removerExercicio(rotinaId: number, exercicioId: string) {
   );
 }
 
-export interface ProximoTreino {
-  rotina: Rotina | null;
-  sessaoId: number | null;
-  feitos: number;
-  total: number;
-  finalizada: boolean;
-  emAndamento: boolean;
-}
+export type ProximoTreino = TreinoEscolhido;
 
+/**
+ * Busca o que a regra precisa e delega pra escolherTreino.
+ * A regra em si mora em escolherTreino.ts, coberta por teste.
+ */
 export async function proximoTreino(): Promise<ProximoTreino> {
-  const vazio: ProximoTreino = {
-    rotina: null,
-    sessaoId: null,
-    feitos: 0,
-    total: 0,
-    finalizada: false,
-    emAndamento: false,
-  };
-
   const rotinas = await getRotinas();
-  if (rotinas.length === 0) return vazio;
+  if (rotinas.length === 0) return SEM_TREINO;
 
   const sessoes =
     (checar(
@@ -437,44 +426,5 @@ export async function proximoTreino(): Promise<ProximoTreino> {
     }
   }
 
-  const temAlgo = (s: SessaoRow) =>
-    s.finalizada || (feitosPorSessao.get(s.id) ?? 0) > 0;
-
-  const hojeStr = hoje();
-  const deHoje = sessoes.find((s) => s.data === hojeStr && temAlgo(s));
-  if (deHoje) {
-    const rotina = rotinas.find((r) => r.id === deHoje.rotina_id);
-    if (rotina) {
-      const feitos = feitosPorSessao.get(deHoje.id) ?? 0;
-      return {
-        rotina,
-        sessaoId: deHoje.id,
-        feitos,
-        total: rotina.exercicios.length,
-        finalizada: deHoje.finalizada,
-        emAndamento: !deHoje.finalizada && feitos > 0,
-      };
-    }
-  }
-
-  const anterior = sessoes.find((s) => s.data < hojeStr && temAlgo(s)) ?? null;
-
-  let alvo = rotinas[0];
-  if (anterior) {
-    const i = rotinas.findIndex((r) => r.id === anterior.rotina_id);
-    if (i >= 0) alvo = rotinas[(i + 1) % rotinas.length];
-  }
-
-  const sessaoVaziaHoje = sessoes.find(
-    (s) => s.data === hojeStr && s.rotina_id === alvo.id,
-  );
-
-  return {
-    rotina: alvo,
-    sessaoId: sessaoVaziaHoje?.id ?? null,
-    feitos: 0,
-    total: alvo.exercicios.length,
-    finalizada: false,
-    emAndamento: false,
-  };
+  return escolherTreino(rotinas, sessoes, feitosPorSessao, hoje());
 }

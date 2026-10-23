@@ -165,8 +165,7 @@
     color: var(--cor-trabalho);
     background: color-mix(in srgb, var(--cor-trabalho) 14%, transparent);
   }
-  &.hoje,
-  &.vencido {
+  &.hoje {
     color: var(--danger);
     background: var(--danger-bg);
   }

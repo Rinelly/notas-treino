@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { hojeChave, ultimosDias } from "../lib/datas";
+import { useDiaAtual } from "../lib/useDiaAtual";
 import {
   apagarTarefa,
   getConfig,
@@ -8,9 +9,18 @@ import {
   getTarefasDeHoje,
   novaTarefa,
   salvarConfig,
-  salvarDia,
   salvarTarefa,
+  somarNoDia,
 } from "./queries";
+import { calcularEstatisticas } from "./estatisticas";
+import {
+  devolver,
+  PENDENTE_ZERO,
+  segundosDoTipo,
+  somar,
+  vazio,
+  type Pendente,
+} from "./pendente";
 import {
   CONFIG_PADRAO,
   diaVazio,
@@ -21,6 +31,9 @@ import {
 } from "./tipos";
 
 const JANELA = 14;
+
+/** no máximo meio minuto de foco pode estar só na memória da aba */
+const INTERVALO_MAXIMO = 30_000;
 
 export function useFoco() {
   const [config, setConfig] = useState<Config>(CONFIG_PADRAO);
@@ -36,17 +49,72 @@ export function useFoco() {
     hojeRef.current = hoje;
   }, [hoje]);
 
-  /* ---------- gravação com atraso ---------- */
+  /* ---------- gravação com atraso ----------
+
+     O app não grava mais o total do dia: grava só o pedaço que
+     acumulou desde a última vez, e o Postgres soma. Com o total,
+     dois aparelhos no mesmo dia se apagavam.
+
+     Se a gravação falha, o pedaço volta pro acumulador — senão
+     some hora registrada.                                        */
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const agendar = useCallback((id: string, ms: number, fn: () => void) => {
     clearTimeout(timers.current[id]);
     timers.current[id] = setTimeout(fn, ms);
   }, []);
 
+  const pendenteRef = useRef<Pendente>(PENDENTE_ZERO);
+  const notaPendenteRef = useRef<string | null>(null);
+  const enviandoRef = useRef(false);
+  const ultimoEnvioRef = useRef(Date.now());
+
+  const enviar = useCallback(async () => {
+    if (enviandoRef.current) return;
+
+    const pedaco = pendenteRef.current;
+    const nota = notaPendenteRef.current;
+    if (vazio(pedaco) && nota === null) return;
+
+    const chave = hojeRef.current.chave;
+    pendenteRef.current = PENDENTE_ZERO;
+    notaPendenteRef.current = null;
+    enviandoRef.current = true;
+
+    try {
+      const salvo = await somarNoDia(chave, pedaco, nota ?? undefined);
+
+      // o servidor virou a verdade: além de confirmar o que subiu,
+      // traz o que o outro aparelho somou enquanto isso
+      setHoje((d) => {
+        if (d.chave !== salvo.chave) return d; // virou o dia no meio do caminho
+        const aindaNaoSubiu = pendenteRef.current;
+        const novo: Dia = {
+          chave: salvo.chave,
+          seg: salvo.seg + aindaNaoSubiu.seg,
+          segTrabalho: salvo.segTrabalho + aindaNaoSubiu.segTrabalho,
+          segEstudo: salvo.segEstudo + aindaNaoSubiu.segEstudo,
+          pomodoros: salvo.pomodoros + aindaNaoSubiu.pomodoros,
+          nota: notaPendenteRef.current ?? salvo.nota,
+        };
+        hojeRef.current = novo;
+        return novo;
+      });
+    } catch {
+      pendenteRef.current = devolver(pendenteRef.current, pedaco);
+      if (nota !== null && notaPendenteRef.current === null) {
+        notaPendenteRef.current = nota;
+      }
+    } finally {
+      enviandoRef.current = false;
+      ultimoEnvioRef.current = Date.now();
+    }
+  }, []);
+
   const gravarDiaAgora = useCallback(() => {
     clearTimeout(timers.current["dia"]);
-    void salvarDia(hojeRef.current).catch(() => {});
-  }, []);
+    clearTimeout(timers.current["nota"]);
+    void enviar();
+  }, [enviar]);
 
   /* ---------- carga inicial ---------- */
   const carregar = useCallback(async () => {
@@ -77,6 +145,16 @@ export function useFoco() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  // virou o dia com o app aberto: grava o que ficou no dia que
+  // acabou e recarrega, senão o tempo da madrugada entraria na
+  // linha de ontem
+  useDiaAtual(
+    useCallback(() => {
+      gravarDiaAgora();
+      void carregar();
+    }, [carregar, gravarDiaAgora]),
+  );
 
   useEffect(() => {
     const sair = () => gravarDiaAgora();
@@ -110,35 +188,42 @@ export function useFoco() {
   /* ---------- ações do timer ---------- */
   const acumularSegundos = useCallback(
     (segundos: number) => {
+      const patch = segundosDoTipo(segundos, tipoAtualRef.current);
+      pendenteRef.current = somar(pendenteRef.current, patch);
+
       setHoje((d) => {
         const novo: Dia = {
           ...d,
           seg: d.seg + segundos,
-          segTrabalho:
-            d.segTrabalho +
-            (tipoAtualRef.current === "trabalho" ? segundos : 0),
-          segEstudo:
-            d.segEstudo + (tipoAtualRef.current === "estudo" ? segundos : 0),
+          segTrabalho: d.segTrabalho + (patch.segTrabalho ?? 0),
+          segEstudo: d.segEstudo + (patch.segEstudo ?? 0),
         };
         hojeRef.current = novo;
         return novo;
       });
-      agendar(
-        "dia",
-        8000,
-        () => void salvarDia(hojeRef.current).catch(() => {}),
-      );
+
+      // O atraso de 8s é um debounce: cada segundo que passa adiava
+      // de novo, e com o cronômetro rodando sem parar a gravação
+      // nunca acontecia — um pomodoro inteiro ficava só na memória
+      // da aba. O teto garante uma subida a cada meio minuto.
+      if (Date.now() - ultimoEnvioRef.current >= INTERVALO_MAXIMO) {
+        clearTimeout(timers.current["dia"]);
+        void enviar();
+      } else {
+        agendar("dia", 8000, () => void enviar());
+      }
     },
-    [agendar],
+    [agendar, enviar],
   );
 
   const concluirPomodoro = useCallback(() => {
+    pendenteRef.current = somar(pendenteRef.current, { pomodoros: 1 });
     setHoje((d) => {
       const novo = { ...d, pomodoros: d.pomodoros + 1 };
       hojeRef.current = novo;
-      void salvarDia(novo).catch(() => {});
       return novo;
     });
+    void enviar();
 
     const ativa = tarefaAtivaId;
     if (ativa) {
@@ -151,7 +236,7 @@ export function useFoco() {
         }),
       );
     }
-  }, [tarefaAtivaId]);
+  }, [enviar, tarefaAtivaId]);
 
   /* ---------- configurações ---------- */
   const mudarConfig = useCallback(
@@ -217,18 +302,15 @@ export function useFoco() {
   /* ---------- anotações ---------- */
   const mudarNota = useCallback(
     (texto: string) => {
+      notaPendenteRef.current = texto;
       setHoje((d) => {
         const novo = { ...d, nota: texto };
         hojeRef.current = novo;
         return novo;
       });
-      agendar(
-        "nota",
-        700,
-        () => void salvarDia(hojeRef.current).catch(() => {}),
-      );
+      agendar("nota", 700, () => void enviar());
     },
-    [agendar],
+    [agendar, enviar],
   );
 
   /* ---------- estatísticas ---------- */
@@ -236,40 +318,15 @@ export function useFoco() {
     const porChave = new Map(historico.map((d) => [d.chave, d]));
     const chaveHoje = hojeChave();
 
+    // o dia de hoje vem do estado (está sendo contado agora),
+    // os outros vêm do que foi carregado
     const dias = ultimosDias(JANELA).map(({ chave, data }) => {
       const d =
         chave === chaveHoje ? hoje : (porChave.get(chave) ?? diaVazio(chave));
       return { ...d, data };
     });
 
-    const metaSeg = config.metaHoras * 3600;
-    const agora = new Date();
-    const diaSemana = (agora.getDay() + 6) % 7; // 0 = segunda
-    const daSemana = dias.slice(-(diaSemana + 1));
-
-    const semana = daSemana.reduce((a, x) => a + x.seg, 0);
-    const ativos = dias.filter((x) => x.seg > 60);
-    const media = ativos.length
-      ? ativos.reduce((a, x) => a + x.seg, 0) / ativos.length
-      : 0;
-
-    let sequencia = 0;
-    for (let i = dias.length - 1; i >= 0; i--) {
-      if (metaSeg > 0 && dias[i].seg >= metaSeg) sequencia++;
-      else if (dias[i].chave === chaveHoje)
-        continue; 
-      else break;
-    }
-
-    return {
-      dias,
-      metaSeg,
-      semana,
-      semanaTrabalho: daSemana.reduce((a, x) => a + x.segTrabalho, 0),
-      semanaEstudo: daSemana.reduce((a, x) => a + x.segEstudo, 0),
-      media,
-      sequencia,
-    };
+    return { dias, ...calcularEstatisticas(dias, config.metaHoras * 3600) };
   }, [historico, hoje, config.metaHoras]);
 
   return {

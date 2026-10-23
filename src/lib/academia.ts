@@ -4,7 +4,13 @@ export interface Vencimento {
   data: Date
   emDias: number
   texto: string
-  nivel: 'tranquilo' | 'perto' | 'hoje' | 'vencido'
+  /**
+   * Não existe 'vencido' aqui de propósito: a conta sempre empurra
+   * para o próximo mês, então um vencimento nunca fica para trás.
+   * Para saber que está vencido seria preciso registrar o pagamento,
+   * e isso o app ainda não faz.
+   */
+  nivel: 'tranquilo' | 'perto' | 'hoje'
 }
 
 function comDiaValido(ano: number, mes: number, dia: number) {
