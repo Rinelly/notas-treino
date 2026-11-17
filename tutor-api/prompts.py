@@ -41,6 +41,9 @@ SUMMARY_PROMPT = """The session is over. Based on the conversation, give Nelly:
 3. One tip to practice before the next session
 Write in English, using simple Markdown."""
 
+TRANSLATE_PROMPT = """You are a translator. Translate the user's English text into natural Brazilian Portuguese.
+Keep the meaning and the tone. Output only the translation: no quotes, no notes, no explanations."""
+
 TUTOR_TOOL = {
     "name": "tutor_reply",
     "description": "Send the tutor's reply, corrections and new vocabulary to the student.",

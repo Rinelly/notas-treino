@@ -9,7 +9,7 @@ Um app só pra três coisas: **acompanhar as horas de foco do dia**,
   trabalho/estudo, anotações e histórico de 14 dias. Só o tempo de foco conta
   na meta; pausa não entra
 - **Estudos** — tutor de conversação em inglês, por voz ou texto: corrige as
-  suas falas, apresenta palavras novas e guarda vocabulário, erros e o resumo
+  suas falas, traduz as dele quando você pede, apresenta palavras novas e guarda vocabulário, erros e o resumo
   de cada sessão
 - **Treinos** — rotina fixa por dia da semana, marcação de séries com carga e
   repetições, calendário de frequência, e a carga da última vez como sugestão

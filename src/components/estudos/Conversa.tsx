@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { enviarConversa, pedirResumo, tutorConfigurado } from '../../estudos/api'
+import { enviarConversa, pedirResumo, traduzir, tutorConfigurado } from '../../estudos/api'
 import {
   CENARIOS,
   rotuloDoCenario,
@@ -43,6 +43,13 @@ export default function Conversa({ falar, calar, aoAprender, aoErrar, aoEncerrar
   const [resumo, setResumo] = useState<string | null>(null)
   /** qual chip de palavra nova está aberto, mostrando o significado */
   const [palavraAberta, setPalavraAberta] = useState<string | null>(null)
+
+  /* tradução das falas do tutor, pedida uma a uma: o texto fica guardado
+     por mensagem, então mostrar de novo não chama o tutor outra vez */
+  const [traducoes, setTraducoes] = useState<Record<string, string>>({})
+  const [traducaoVisivel, setTraducaoVisivel] = useState<Record<string, boolean>>({})
+  const [traduzindo, setTraduzindo] = useState<Record<string, boolean>>({})
+  const [erroTraducao, setErroTraducao] = useState<Record<string, string>>({})
 
   const rolagemRef = useRef<HTMLDivElement>(null)
   const inicioRef = useRef<Date | null>(null)
@@ -105,6 +112,34 @@ export default function Conversa({ falar, calar, aoAprender, aoErrar, aoEncerrar
     }
   }
 
+  async function alternarTraducao(m: Mensagem) {
+    if (traducaoVisivel[m.id]) {
+      setTraducaoVisivel((v) => ({ ...v, [m.id]: false }))
+      return
+    }
+    if (traducoes[m.id]) {
+      setTraducaoVisivel((v) => ({ ...v, [m.id]: true }))
+      return
+    }
+    if (traduzindo[m.id]) return
+
+    const sessao = sessaoRef.current
+    setTraduzindo((v) => ({ ...v, [m.id]: true }))
+    setErroTraducao((v) => ({ ...v, [m.id]: '' }))
+    try {
+      const pt = await traduzir(m.texto)
+      if (sessao !== sessaoRef.current) return
+      setTraducoes((v) => ({ ...v, [m.id]: pt }))
+      setTraducaoVisivel((v) => ({ ...v, [m.id]: true }))
+    } catch (ex) {
+      if (sessao !== sessaoRef.current) return
+      const msg = ex instanceof Error ? ex.message : 'Não consegui traduzir.'
+      setErroTraducao((v) => ({ ...v, [m.id]: msg }))
+    } finally {
+      if (sessao === sessaoRef.current) setTraduzindo((v) => ({ ...v, [m.id]: false }))
+    }
+  }
+
   const falas = mensagens.filter((m) => m.papel === 'user' && !m.oculta)
 
   async function encerrar() {
@@ -147,6 +182,10 @@ export default function Conversa({ falar, calar, aoAprender, aoErrar, aoEncerrar
     setTexto('')
     setEnviando(false)
     setPalavraAberta(null)
+    setTraducoes({})
+    setTraducaoVisivel({})
+    setTraduzindo({})
+    setErroTraducao({})
   }
 
   function voltar() {
@@ -248,6 +287,11 @@ export default function Conversa({ falar, calar, aoAprender, aoErrar, aoEncerrar
             <div key={m.id} className={`${s.linha} ${m.papel === 'user' ? s.minha : s.tutor}`}>
               <div className={s.balao}>
                 <p>{m.texto}</p>
+                {m.papel === 'assistant' && traducaoVisivel[m.id] && traducoes[m.id] && (
+                  <p className={s.traducao} lang="pt-BR">
+                    {traducoes[m.id]}
+                  </p>
+                )}
                 {m.papel === 'assistant' && (
                   <button
                     type="button"
@@ -260,6 +304,23 @@ export default function Conversa({ falar, calar, aoAprender, aoErrar, aoEncerrar
                   </button>
                 )}
               </div>
+
+              {m.papel === 'assistant' && (
+                <button
+                  type="button"
+                  className={s.traduzir}
+                  onClick={() => void alternarTraducao(m)}
+                  disabled={traduzindo[m.id]}
+                  aria-expanded={Boolean(traducaoVisivel[m.id])}
+                >
+                  {traduzindo[m.id]
+                    ? 'Traduzindo...'
+                    : traducaoVisivel[m.id]
+                      ? 'Ocultar tradução'
+                      : 'Ver tradução'}
+                </button>
+              )}
+              {erroTraducao[m.id] && <p className={s.erro}>{erroTraducao[m.id]}</p>}
 
               {m.correcoes &&
                 (m.correcoes.length ? (

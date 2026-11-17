@@ -7,11 +7,11 @@ load_dotenv()  # precisa vir antes de importar llm e auth, que leem o .env
 
 from fastapi import Depends, FastAPI, HTTPException  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
-from pydantic import BaseModel  # noqa: E402
+from pydantic import BaseModel, Field  # noqa: E402
 
 import auth  # noqa: E402
 import llm  # noqa: E402
-from prompts import SCENARIOS, SUMMARY_PROMPT, SYSTEM_PROMPT  # noqa: E402
+from prompts import SCENARIOS, SUMMARY_PROMPT, SYSTEM_PROMPT, TRANSLATE_PROMPT  # noqa: E402
 
 # de onde o app pode chamar esta API. Em produção, some o endereço do app
 # publicado: CORS_ORIGINS=http://localhost:5173,https://seu-app.vercel.app
@@ -38,6 +38,10 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     messages: list[Message]
     scenario: str = "free"
+
+
+class TranslateRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
 
 
 def build_system(scenario: str) -> str:
@@ -87,3 +91,21 @@ def summary(req: ChatRequest, _usuario: str | None = Depends(auth.exigir_usuario
     except llm.LLMError as exc:
         raise HTTPException(502, str(exc)) from exc
     return {"summary": text}
+
+
+@app.post("/api/translate")
+def translate(req: TranslateRequest, _usuario: str | None = Depends(auth.exigir_usuario)):
+    """Tradução de uma fala para o português, só quando ela é pedida.
+
+    Fica fora do /api/chat de propósito: traduzir toda resposta deixaria
+    cada fala mais lenta, e na maioria delas ninguém pede a tradução.
+    """
+    if not req.text.strip():
+        raise HTTPException(400, "text is empty")
+    try:
+        text = llm.plain_text(TRANSLATE_PROMPT, [{"role": "user", "content": req.text.strip()}])
+    except llm.LLMError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    if not text.strip():
+        raise HTTPException(502, "O modelo não devolveu a tradução.")
+    return {"translation": text.strip()}

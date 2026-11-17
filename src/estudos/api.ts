@@ -64,3 +64,9 @@ export async function pedirResumo(mensagens: Mensagem[], cenario: Cenario) {
   })
   return r.summary
 }
+
+/** a fala do tutor em português; só é pedida quando alguém toca em "Traduzir" */
+export async function traduzir(texto: string) {
+  const r = await post<{ translation: string }>('/translate', { text: texto })
+  return r.translation
+}
