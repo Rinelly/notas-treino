@@ -20,6 +20,10 @@ export default defineConfig({
   define: {
     __VERSAO__: JSON.stringify(versao),
   },
+  server: {
+    // a aba Estudos chama /api e o Vite repassa para a tutor-api (FastAPI)
+    proxy: { '/api': 'http://localhost:8000' },
+  },
   plugins: [
     react(),
     VitePWA({

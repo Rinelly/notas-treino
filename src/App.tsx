@@ -7,6 +7,7 @@ import Boot from './pages/Boot'
 import Login from './pages/Login'
 import Hoje from './pages/Hoje'
 import Foco from './pages/Foco'
+import Estudos from './pages/Estudos'
 import Treinos from './pages/Home'
 import Sessao from './pages/Sessao'
 import Diagnostico from './pages/Diagnostico'
@@ -20,6 +21,7 @@ function Miolo() {
       <Routes>
         <Route path="/" element={<Hoje />} />
         <Route path="/foco" element={<Foco />} />
+        <Route path="/estudos" element={<Estudos />} />
         <Route path="/treinos" element={<Treinos />} />
         <Route path="/sessao/:sessaoId" element={<Sessao />} />
         <Route path="/dados" element={<Dados />} />

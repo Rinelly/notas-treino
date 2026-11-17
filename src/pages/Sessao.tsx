@@ -13,7 +13,7 @@
    ========================================================= */
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import DescansoNoCard from '../components/DescansoNoCard'
 import { fmtDescanso, segundosDoTexto } from '../foco/descanso'
 import { useDescanso } from '../foco/useDescanso'
@@ -63,6 +63,7 @@ function montarNome(curto: string, detalhe: string) {
 
 export default function Sessao() {
   const { sessaoId } = useParams()
+  const navigate = useNavigate()
   const id = Number(sessaoId)
 
   const [sessao, setSessao] = useState<SessaoType | null>(null)
@@ -386,6 +387,10 @@ export default function Sessao() {
       return
     }
     setSessao((prev) => (prev ? { ...prev, finalizada } : prev))
+    // treino finalizado não tem mais o que fazer nesta tela: volta pra
+    // aba Treinos, onde o dia já aparece marcado. Reabrir um treino
+    // (desmarcar o concluído) continua aqui, pra seguir editando.
+    if (finalizada) navigate('/treinos')
   }
 
   if (!rotina || !sessao) return null

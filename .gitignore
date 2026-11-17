@@ -25,3 +25,8 @@ dist-ssr
 
 # config local do Claude Code
 .claude/
+
+# tutor-api (Python)
+.env
+.venv
+__pycache__

@@ -6,6 +6,7 @@ import s from './Nav.module.scss'
 const abas = [
   { para: '/', rotulo: 'Hoje' },
   { para: '/foco', rotulo: 'Foco' },
+  { para: '/estudos', rotulo: 'Estudos' },
   { para: '/treinos', rotulo: 'Treinos' },
   { para: '/medidas', rotulo: 'Medidas' },
 ]
@@ -21,18 +22,20 @@ export default function Nav() {
       <div className={s.interno}>
         <span className={s.marca}>Rinelly</span>
 
-        {abas.map((a) => (
-          <NavLink
-            key={a.para}
-            to={a.para}
-            end={a.para === '/'}
-            className={({ isActive }) => `${s.link} ${isActive ? s.ativo : ''}`}
-          >
-            {a.rotulo}
-          </NavLink>
-        ))}
-
-        <span className={s.espaco} />
+        {/* com cinco abas a fila não cabe mais num celular estreito:
+            as abas rolam de lado e o tema e o Sair ficam sempre à vista */}
+        <div className={s.abas}>
+          {abas.map((a) => (
+            <NavLink
+              key={a.para}
+              to={a.para}
+              end={a.para === '/'}
+              className={({ isActive }) => `${s.link} ${isActive ? s.ativo : ''}`}
+            >
+              {a.rotulo}
+            </NavLink>
+          ))}
+        </div>
 
         <BotaoTema />
 
