@@ -7,6 +7,7 @@ Troque de provedor mudando LLM_PROVIDER no .env:
 
 import json
 import os
+import time
 
 from prompts import TUTOR_TOOL
 
@@ -37,13 +38,55 @@ if PROVIDER == "gemini":
             for m in messages
         ]
 
+    # ---- quanto o modelo "pensa" antes de responder -------------------
+    # Os modelos Flash atuais raciocinam por padrão, e é isso que deixa a
+    # conversa lenta: vários segundos antes da primeira palavra. Para um
+    # bate-papo com correções curtas, o mínimo basta.
+    #
+    # GEMINI_THINKING no .env: minimal (padrão), low, medium, high,
+    # ou default para não mandar nada e deixar o padrão do modelo.
+    #
+    # Nem todo modelo aceita todos os níveis. Se o escolhido for recusado,
+    # a API tenta o próximo da fila e lembra qual funcionou.
+    _PEDIDO = os.getenv("GEMINI_THINKING", "minimal").strip().lower()
+    _FILA = {
+        "minimal": ["minimal", "low", None],
+        "low": ["low", None],
+        "medium": ["medium", None],
+        "high": ["high", None],
+    }.get(_PEDIDO, [None])
+    _nivel = {"indice": 0}
+
+    def _config(system: str, nivel: str | None, **config):
+        if nivel:
+            config["thinking_config"] = types.ThinkingConfig(thinking_level=nivel)
+        return types.GenerateContentConfig(system_instruction=system, **config)
+
     def _generate(system: str, messages: list[dict], **config):
+        inicio = time.perf_counter()
         try:
-            return _client.models.generate_content(
-                model=MODEL,
-                contents=_contents(messages),
-                config=types.GenerateContentConfig(system_instruction=system, **config),
+            while True:
+                nivel = _FILA[_nivel["indice"]]
+                try:
+                    resposta = _client.models.generate_content(
+                        model=MODEL,
+                        contents=_contents(messages),
+                        config=_config(system, nivel, **config),
+                    )
+                    break
+                except genai_errors.ClientError as exc:
+                    # 400 com um nível de raciocínio pedido: o modelo não aceita
+                    # esse nível. Desce um degrau e tenta de novo.
+                    recusou = exc.code == 400 and nivel and _nivel["indice"] < len(_FILA) - 1
+                    if not recusou:
+                        raise
+                    _nivel["indice"] += 1
+            print(
+                f"[tutor] {MODEL} respondeu em {time.perf_counter() - inicio:.1f}s "
+                f"(raciocínio: {nivel or 'padrão do modelo'})",
+                flush=True,
             )
+            return resposta
         except genai_errors.ClientError as exc:
             if "API_KEY_INVALID" in str(exc) or "API key not valid" in str(exc):
                 raise LLMError(
