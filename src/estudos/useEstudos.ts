@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   apagarPalavra,
   getErros,
+  getFoco,
   getPalavras,
   getSessoes,
   salvarErros,
+  salvarFoco,
   salvarPalavras,
   salvarSessao,
 } from './queries'
@@ -37,7 +39,7 @@ async function importarDoNavegador() {
 
 /** tabela que ainda não existe: falta rodar o supabase/schema-estudos.sql */
 function faltaTabela(mensagem: string) {
-  return /ingles_(palavras|erros|sessoes)/.test(mensagem) && /not find|does not exist|schema cache/i.test(mensagem)
+  return /ingles_(palavras|erros|sessoes|perfil)/.test(mensagem) && /not find|does not exist|schema cache/i.test(mensagem)
 }
 
 export function useEstudos() {
@@ -47,6 +49,9 @@ export function useEstudos() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [semTabelas, setSemTabelas] = useState(false)
+  /** o que ela está estudando agora; vai para o tutor em toda conversa */
+  const [foco, setFoco] = useState('')
+  const [semTabelaFoco, setSemTabelaFoco] = useState(false)
   /** a conversa segue mesmo se guardar falhar; isto só avisa */
   const [avisoSalvar, setAvisoSalvar] = useState<string | null>(null)
 
@@ -61,6 +66,15 @@ export function useEstudos() {
     setSemTabelas(false)
     try {
       await importarDoNavegador()
+      // o foco carrega por fora: a tabela dele veio depois, e a falta dela
+      // não pode derrubar vocabulário, erros e histórico junto
+      setSemTabelaFoco(false)
+      getFoco()
+        .then(setFoco)
+        .catch((ex: unknown) => {
+          if (faltaTabela(ex instanceof Error ? ex.message : '')) setSemTabelaFoco(true)
+        })
+
       const [p, e, s] = await Promise.all([getPalavras(), getErros(), getSessoes()])
       setPalavras(p)
       setErros(e)
@@ -142,7 +156,22 @@ export function useEstudos() {
     [falhou],
   )
 
+  /** devolve se salvou; quem chama mostra o resultado ao lado do campo */
+  const mudarFoco = useCallback(async (texto: string) => {
+    try {
+      await salvarFoco(texto)
+      setFoco(texto)
+      return true
+    } catch (ex) {
+      if (faltaTabela(ex instanceof Error ? ex.message : '')) setSemTabelaFoco(true)
+      return false
+    }
+  }, [])
+
   return {
+    foco,
+    semTabelaFoco,
+    mudarFoco,
     palavras,
     erros,
     sessoes,

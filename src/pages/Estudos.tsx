@@ -6,10 +6,12 @@
    junto com o resto do app.
    ========================================================= */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Conversa from '../components/estudos/Conversa'
+import FocoAtual from '../components/estudos/FocoAtual'
 import Historico from '../components/estudos/Historico'
 import Vocabulario from '../components/estudos/Vocabulario'
+import { montarContexto } from '../estudos/contexto'
 import { useEstudos } from '../estudos/useEstudos'
 import { useFala } from '../estudos/useVoz'
 import s from './Estudos.module.scss'
@@ -20,6 +22,11 @@ export default function Estudos() {
   const e = useEstudos()
   const voz = useFala()
   const [aba, setAba] = useState<Aba>('conversa')
+
+  const contexto = useMemo(
+    () => montarContexto(e.foco, e.erros, e.palavras),
+    [e.foco, e.erros, e.palavras],
+  )
 
   const abas: { id: Aba; rotulo: string; total?: number }[] = [
     { id: 'conversa', rotulo: 'Conversa' },
@@ -82,12 +89,22 @@ export default function Estudos() {
           conferir uma palavra não pode apagar a sessão em andamento */}
       <div hidden={aba !== 'conversa'} className={s.painel}>
         <Conversa
+          contexto={contexto}
           falar={voz.falar}
           calar={voz.calar}
           aoAprender={(p) => void e.adicionarPalavras(p)}
           aoErrar={(c) => void e.adicionarErros(c)}
           aoEncerrar={(x) => void e.registrarSessao(x)}
-        />
+        >
+          <FocoAtual
+            foco={e.foco}
+            carregando={e.carregando}
+            semTabela={e.semTabelaFoco}
+            totalErros={contexto.mistakes.length}
+            totalPalavras={contexto.words.length}
+            aoSalvar={e.mudarFoco}
+          />
+        </Conversa>
       </div>
 
       {aba === 'vocabulario' &&

@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { Cenario, Mensagem, RespostaTutor } from './tipos'
+import type { Cenario, ContextoDoTutor, Mensagem, RespostaTutor } from './tipos'
 
 /* Onde mora o tutor (a pasta tutor-api, em FastAPI).
 
@@ -53,14 +53,19 @@ async function post<T>(caminho: string, corpo: unknown): Promise<T> {
 const paraApi = (mensagens: Mensagem[]) =>
   mensagens.map((m) => ({ role: m.papel, content: m.texto }))
 
-export function enviarConversa(mensagens: Mensagem[], cenario: Cenario) {
-  return post<RespostaTutor>('/chat', { messages: paraApi(mensagens), scenario: cenario })
+export function enviarConversa(mensagens: Mensagem[], cenario: Cenario, contexto?: ContextoDoTutor) {
+  return post<RespostaTutor>('/chat', {
+    messages: paraApi(mensagens),
+    scenario: cenario,
+    context: contexto,
+  })
 }
 
-export async function pedirResumo(mensagens: Mensagem[], cenario: Cenario) {
+export async function pedirResumo(mensagens: Mensagem[], cenario: Cenario, contexto?: ContextoDoTutor) {
   const r = await post<{ summary: string }>('/summary', {
     messages: paraApi(mensagens),
     scenario: cenario,
+    context: contexto,
   })
   return r.summary
 }

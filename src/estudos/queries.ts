@@ -173,3 +173,26 @@ export async function salvarSessao(s: NovaSessao): Promise<SessaoIngles> {
   ) as SessaoRow
   return paraSessao(row)
 }
+
+/* ---------- foco atual ---------- */
+
+/** o que ela está estudando agora; '' quando ainda não escreveu nada */
+export async function getFoco(): Promise<string> {
+  const row = checar(
+    await supabase.from('ingles_perfil').select('foco').maybeSingle(),
+  ) as { foco: string } | null
+  return row?.foco ?? ''
+}
+
+export async function salvarFoco(foco: string) {
+  checar(
+    await supabase.from('ingles_perfil').upsert(
+      {
+        user_id: await uid(),
+        foco,
+        atualizado_em: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' },
+    ),
+  )
+}

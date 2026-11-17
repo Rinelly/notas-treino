@@ -66,6 +66,18 @@ create index if not exists ingles_sessoes_user_idx
   on public.ingles_sessoes (user_id, encerrada_em desc);
 
 
+-- ---------------------------------------------------------
+-- PERFIL — uma linha por pessoa: o que ela está estudando agora
+-- ---------------------------------------------------------
+-- É este texto que o app manda ao tutor para ele puxar os
+-- assuntos da semana na conversa.
+create table if not exists public.ingles_perfil (
+  user_id       uuid primary key references auth.users(id) on delete cascade,
+  foco          text        not null default '',
+  atualizado_em timestamptz not null default now()
+);
+
+
 -- =========================================================
 -- SEGURANÇA (Row Level Security)
 -- Cada linha só é visível para o dono, igual ao resto do app.
@@ -74,6 +86,7 @@ create index if not exists ingles_sessoes_user_idx
 alter table public.ingles_palavras enable row level security;
 alter table public.ingles_erros    enable row level security;
 alter table public.ingles_sessoes  enable row level security;
+alter table public.ingles_perfil   enable row level security;
 
 -- ingles_palavras
 drop policy if exists "ingles_palavras: dono lê"       on public.ingles_palavras;
@@ -108,12 +121,23 @@ create policy "ingles_sessoes: dono insere"   on public.ingles_sessoes for inser
 create policy "ingles_sessoes: dono atualiza" on public.ingles_sessoes for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "ingles_sessoes: dono apaga"    on public.ingles_sessoes for delete using (auth.uid() = user_id);
 
+-- ingles_perfil
+drop policy if exists "ingles_perfil: dono lê"       on public.ingles_perfil;
+drop policy if exists "ingles_perfil: dono insere"   on public.ingles_perfil;
+drop policy if exists "ingles_perfil: dono atualiza" on public.ingles_perfil;
+drop policy if exists "ingles_perfil: dono apaga"    on public.ingles_perfil;
+
+create policy "ingles_perfil: dono lê"       on public.ingles_perfil for select using (auth.uid() = user_id);
+create policy "ingles_perfil: dono insere"   on public.ingles_perfil for insert with check (auth.uid() = user_id);
+create policy "ingles_perfil: dono atualiza" on public.ingles_perfil for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "ingles_perfil: dono apaga"    on public.ingles_perfil for delete using (auth.uid() = user_id);
+
 
 -- =========================================================
--- Conferência rápida: as três tabelas devem aparecer
+-- Conferência rápida: as quatro tabelas devem aparecer
 -- com rowsecurity = true
 -- =========================================================
 select tablename, rowsecurity
 from pg_tables
 where schemaname = 'public'
-  and tablename in ('ingles_palavras','ingles_erros','ingles_sessoes');
+  and tablename in ('ingles_palavras','ingles_erros','ingles_sessoes','ingles_perfil');

@@ -68,7 +68,7 @@ ficar no navegador.
 
 **1. Crie as tabelas** — no SQL Editor do Supabase, rode o
 `supabase/schema-estudos.sql`. No fim devem aparecer `ingles_palavras`,
-`ingles_erros` e `ingles_sessoes` com `rowsecurity = true`.
+`ingles_erros`, `ingles_sessoes` e `ingles_perfil` com `rowsecurity = true`.
 
 **2. Suba a tutor-api** (em outro terminal):
 
@@ -86,6 +86,14 @@ A chave do Gemini é gratuita: aistudio.google.com/apikey.
 **3. Abra a aba Estudos** com o `npm run dev` rodando. O Vite repassa `/api`
 para `http://localhost:8000`, então não há nada a configurar no app. Use o
 Chrome ou o Edge para falar — o reconhecimento de voz depende deles.
+
+**Como o tutor "aprende".** O modelo não é treinado nem lembra de nada
+sozinho: ele só sabe o que vai escrito nas instruções de cada chamada. Por
+isso o app manda, junto com a conversa, o campo **O que estou estudando** e o
+que há de mais recente nos seus erros e no seu vocabulário
+(`src/estudos/contexto.ts`), e a tutor-api transforma isso em instruções
+(`tutor-api/contexto.py`). Para mudar o comportamento de base do tutor — tom,
+nível, cenários — o lugar é `tutor-api/prompts.py`.
 
 Sem a tutor-api no ar, o vocabulário e o histórico continuam funcionando; só a
 conversa avisa que não achou o tutor.
@@ -132,7 +140,8 @@ src/
 │   └── db.ts              Dexie antigo, só pra ler na migração
 ├── estudos/               ⬅ lado ESTUDOS
 │   ├── api.ts             fala com a tutor-api (chat e resumo)
-│   ├── queries.ts         acesso a ingles_palavras/erros/sessoes
+│   ├── queries.ts         acesso a ingles_palavras/erros/sessoes/perfil
+│   ├── contexto.ts        o que o tutor recebe além da conversa
 │   ├── useEstudos.ts      vocabulário, erros e sessões guardados
 │   ├── useVoz.ts          fala -> texto e texto -> fala, no navegador
 │   └── vocabulario.ts     regras puras: o que conta como palavra nova
@@ -152,8 +161,9 @@ src/
 ```
 
 Fora do `src/`, a pasta `tutor-api/` é o servidor do tutor: `main.py` (rotas),
-`llm.py` (Gemini ou Claude), `prompts.py` (o tutor e os cenários) e `auth.py`
-(quem pode usar).
+`llm.py` (Gemini ou Claude), `prompts.py` (o tutor e os cenários),
+`contexto.py` (foco atual e histórico viram instruções) e `auth.py` (quem
+pode usar).
 
 **Nenhuma página fala com o banco direto.** O lado treino passa por
 `db/queries.ts`, o lado foco por `foco/queries.ts`, o lado estudos por
@@ -171,7 +181,7 @@ o limite de largura fica em cada página, não no `#root`.
 O Foco usa `settings`, `days` e `tasks` — as mesmas que o app Foco original
 criou. Enquanto os dois existirem, o que você registrar num aparece no outro.
 O Treino usa `rotinas`, `sessoes` e `execucoes`. Os Estudos usam
-`ingles_palavras`, `ingles_erros` e `ingles_sessoes`.
+`ingles_palavras`, `ingles_erros`, `ingles_sessoes` e `ingles_perfil`.
 
 ---
 

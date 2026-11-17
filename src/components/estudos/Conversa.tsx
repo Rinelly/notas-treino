@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { enviarConversa, pedirResumo, traduzir, tutorConfigurado } from '../../estudos/api'
 import {
   CENARIOS,
   rotuloDoCenario,
   type Cenario,
+  type ContextoDoTutor,
   type Correcao,
   type Mensagem,
   type NovaSessao,
@@ -26,6 +27,10 @@ function lerPreferenciaDeVoz() {
 const novoId = () => crypto.randomUUID()
 
 interface Props {
+  /** foco atual + erros e palavras recentes: o que o tutor sabe além da conversa */
+  contexto: ContextoDoTutor
+  /** o cartão "O que estou estudando", mostrado antes da conversa começar */
+  children?: ReactNode
   falar: (texto: string, velocidade?: number) => void
   calar: () => void
   aoAprender: (palavras: PalavraNova[]) => void
@@ -33,7 +38,7 @@ interface Props {
   aoEncerrar: (sessao: NovaSessao) => void
 }
 
-export default function Conversa({ falar, calar, aoAprender, aoErrar, aoEncerrar }: Props) {
+export default function Conversa({ contexto, children, falar, calar, aoAprender, aoErrar, aoEncerrar }: Props) {
   const [cenario, setCenario] = useState<Cenario>('free')
   const [mensagens, setMensagens] = useState<Mensagem[]>([])
   const [texto, setTexto] = useState('')
@@ -89,7 +94,7 @@ export default function Conversa({ falar, calar, aoAprender, aoErrar, aoEncerrar
     setEnviando(true)
 
     try {
-      const r = await enviarConversa(historico, cenario)
+      const r = await enviarConversa(historico, cenario, contexto)
       if (sessao !== sessaoRef.current) return
       // as correções são sobre a última fala; o "oi" automático não tem o que corrigir
       const correcoes = oculta ? [] : (r.corrections ?? [])
@@ -149,7 +154,7 @@ export default function Conversa({ falar, calar, aoAprender, aoErrar, aoEncerrar
     setEnviando(true)
     setErro(null)
     try {
-      const textoDoResumo = await pedirResumo(mensagens, cenario)
+      const textoDoResumo = await pedirResumo(mensagens, cenario, contexto)
       if (sessao !== sessaoRef.current) return
       setResumo(textoDoResumo)
       const inicio = inicioRef.current ?? new Date()
@@ -199,53 +204,56 @@ export default function Conversa({ falar, calar, aoAprender, aoErrar, aoEncerrar
   /* ---------- antes de começar: escolha do cenário ---------- */
   if (!mensagens.length) {
     return (
-      <section className={s.card}>
-        <h2 className={s.titulo}>Escolha um cenário</h2>
+      <>
+        <section className={s.card}>
+          <h2 className={s.titulo}>Escolha um cenário</h2>
 
-        <div className={s.cenarios}>
-          {CENARIOS.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`${s.cenario} ${cenario === c.id ? s.ativo : ''}`}
-              aria-pressed={cenario === c.id}
-              onClick={() => setCenario(c.id)}
-            >
-              <strong>{c.rotulo}</strong>
-              <span>{c.dica}</span>
-            </button>
-          ))}
-        </div>
-
-        {tutorConfigurado ? (
-          <div className={s.comecar}>
-            <button
-              type="button"
-              className={s.principal}
-              disabled={enviando}
-              onClick={() => void enviar("Hi! Let's start the session.", true)}
-            >
-              {enviando ? 'Chamando o tutor...' : 'Começar conversa'}
-            </button>
-            <button type="button" className={s.secundario} onClick={trocarVoz}>
-              {lerEmVozAlta ? '🔊 Respostas em voz alta' : '🔇 Respostas só em texto'}
-            </button>
+          <div className={s.cenarios}>
+            {CENARIOS.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className={`${s.cenario} ${cenario === c.id ? s.ativo : ''}`}
+                aria-pressed={cenario === c.id}
+                onClick={() => setCenario(c.id)}
+              >
+                <strong>{c.rotulo}</strong>
+                <span>{c.dica}</span>
+              </button>
+            ))}
           </div>
-        ) : (
-          <p className={s.aviso}>
-            O tutor ainda não está publicado: por enquanto ele só conversa com o app rodando no
-            computador. O vocabulário e o histórico continuam disponíveis aqui.
-          </p>
-        )}
 
-        {erro && <p className={s.erro}>{erro}</p>}
-        {tutorConfigurado && !escuta.suportado && (
-          <p className={s.nota}>
-            Este navegador não reconhece voz. Dá pra conversar digitando; pra falar, use o Chrome
-            ou o Edge.
-          </p>
-        )}
-      </section>
+          {tutorConfigurado ? (
+            <div className={s.comecar}>
+              <button
+                type="button"
+                className={s.principal}
+                disabled={enviando}
+                onClick={() => void enviar("Hi! Let's start the session.", true)}
+              >
+                {enviando ? 'Chamando o tutor...' : 'Começar conversa'}
+              </button>
+              <button type="button" className={s.secundario} onClick={trocarVoz}>
+                {lerEmVozAlta ? '🔊 Respostas em voz alta' : '🔇 Respostas só em texto'}
+              </button>
+            </div>
+          ) : (
+            <p className={s.aviso}>
+              O tutor ainda não está publicado: por enquanto ele só conversa com o app rodando no
+              computador. O vocabulário e o histórico continuam disponíveis aqui.
+            </p>
+          )}
+
+          {erro && <p className={s.erro}>{erro}</p>}
+          {tutorConfigurado && !escuta.suportado && (
+            <p className={s.nota}>
+              Este navegador não reconhece voz. Dá pra conversar digitando; pra falar, use o Chrome
+              ou o Edge.
+            </p>
+          )}
+        </section>
+        {children}
+      </>
     )
   }
 

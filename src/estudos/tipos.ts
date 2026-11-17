@@ -73,3 +73,12 @@ export interface SessaoIngles {
 }
 
 export type NovaSessao = Omit<SessaoIngles, 'id' | 'encerradaEm'> & { iniciadaEm: string }
+
+/* ---------- o que o tutor recebe além da conversa ---------- */
+
+export interface ContextoDoTutor {
+  /** o que ela está estudando agora, escrito por ela */
+  focus: string
+  mistakes: { original: string; better: string }[]
+  words: string[]
+}

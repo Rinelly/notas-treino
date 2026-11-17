@@ -251,6 +251,41 @@
   margin: 14px 0 0;
 }
 
+/* ---------------- o que estou estudando ---------------- */
+.foco {
+  display: block;
+  width: 100%;
+  min-height: 92px;
+  resize: vertical;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg-elevated-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+
+  &::placeholder {
+    color: var(--text-subtle);
+  }
+  &:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+  }
+}
+
+.focoRodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
 /* ---------------- conversa ---------------- */
 .chat {
   display: flex;

@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
 
 import auth  # noqa: E402
+import contexto  # noqa: E402
 import llm  # noqa: E402
 from prompts import SCENARIOS, SUMMARY_PROMPT, SYSTEM_PROMPT, TRANSLATE_PROMPT  # noqa: E402
 
@@ -38,14 +39,17 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     messages: list[Message]
     scenario: str = "free"
+    context: contexto.Context | None = None
 
 
 class TranslateRequest(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
 
 
-def build_system(scenario: str) -> str:
-    return f"{SYSTEM_PROMPT}\nCURRENT SCENARIO: {SCENARIOS.get(scenario, SCENARIOS['free'])}"
+def build_system(scenario: str, context: contexto.Context | None = None) -> str:
+    system = f"{SYSTEM_PROMPT}\nCURRENT SCENARIO: {SCENARIOS.get(scenario, SCENARIOS['free'])}"
+    extra = contexto.montar(context)
+    return f"{system}\n\n{extra}" if extra else system
 
 
 def merge_roles(messages: list[dict]) -> list[dict]:
@@ -75,7 +79,7 @@ def chat(req: ChatRequest, _usuario: str | None = Depends(auth.exigir_usuario)):
         raise HTTPException(400, "messages is empty")
     messages = merge_roles([m.model_dump() for m in req.messages])
     try:
-        return llm.tutor_reply(build_system(req.scenario), messages)
+        return llm.tutor_reply(build_system(req.scenario, req.context), messages)
     except llm.LLMError as exc:
         raise HTTPException(502, str(exc)) from exc
 
@@ -87,7 +91,7 @@ def summary(req: ChatRequest, _usuario: str | None = Depends(auth.exigir_usuario
     messages = [m.model_dump() for m in req.messages]
     messages.append({"role": "user", "content": SUMMARY_PROMPT})
     try:
-        text = llm.plain_text(build_system(req.scenario), merge_roles(messages))
+        text = llm.plain_text(build_system(req.scenario, req.context), merge_roles(messages))
     except llm.LLMError as exc:
         raise HTTPException(502, str(exc)) from exc
     return {"summary": text}
